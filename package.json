@@ -9,9 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/pg": "^8.16.0",
+    "@uploadthing/react": "^7.3.3",
+    "lucide-react": "^0.562.0",
     "next": "16.1.1",
+    "pg": "^8.16.3",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "uploadthing": "^7.7.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
