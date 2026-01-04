@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         resume_url,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())`,
       [
         applicationId,
         jobId,
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         step2.lastName,
         step2.email,
         step2.phone,
-        step1.applicantImage,
+        step1.applicantImage || null,
         willingToBeAssignedInButuan,
         willingToStartASAP,
         step3.whyShouldWeHireYou,
@@ -103,6 +103,16 @@ export async function POST(request: Request) {
         );
       }
     }
+
+    // Trigger AI screening asynchronously (don't wait for it)
+    fetch(`${request.url.replace('/applications', '/ai-screening')}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId }),
+    }).catch((error) => {
+      console.error("AI screening failed:", error);
+      // Don't fail the application submission if AI screening fails
+    });
 
     return NextResponse.json({
       success: true,

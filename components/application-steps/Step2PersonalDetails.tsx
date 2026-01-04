@@ -1,14 +1,21 @@
 "use client";
 
 import { Input } from "@/components/forms/input";
-import type { Step2Data } from "@/lib/types";
+import type { Step2Data, ExtractedPersonalData } from "@/lib/types";
+import { useEffect } from "react";
+import { Sparkles } from "lucide-react";
 
 interface Step2Props {
   data: Step2Data;
   updateData: (data: Partial<Step2Data>) => void;
+  extractedData: ExtractedPersonalData | null;
 }
 
-export default function Step2PersonalDetails({ data, updateData }: Step2Props) {
+export default function Step2PersonalDetails({
+  data,
+  updateData,
+  extractedData,
+}: Step2Props) {
   const educationalOptions = [
     "High School Graduate",
     "Vocational",
@@ -26,6 +33,31 @@ export default function Step2PersonalDetails({ data, updateData }: Step2Props) {
     "Other",
   ];
 
+  // Auto-fill form when extracted data is available
+  useEffect(() => {
+    if (extractedData && extractedData.confidence > 0.3) {
+      const updates: Partial<Step2Data> = {};
+
+      if (extractedData.firstName) updates.firstName = extractedData.firstName;
+      if (extractedData.middleName)
+        updates.middleName = extractedData.middleName;
+      if (extractedData.lastName) updates.lastName = extractedData.lastName;
+      if (extractedData.email) updates.email = extractedData.email;
+      if (extractedData.phone) updates.phone = extractedData.phone;
+      if (extractedData.address) updates.address = extractedData.address;
+      if (extractedData.educationalAttainment)
+        updates.educationalAttainment = extractedData.educationalAttainment;
+      if (extractedData.courseDegree)
+        updates.courseDegree = extractedData.courseDegree;
+      if (extractedData.schoolGraduated)
+        updates.schoolGraduated = extractedData.schoolGraduated;
+
+      if (Object.keys(updates).length > 0) {
+        updateData(updates);
+      }
+    }
+  }, [extractedData]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -35,6 +67,15 @@ export default function Step2PersonalDetails({ data, updateData }: Step2Props) {
         <p className="text-gray-600">
           Please provide your personal details accurately.
         </p>
+        {extractedData && extractedData.confidence > 0.3 && (
+          <div className="mt-3 flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <Sparkles className="w-4 h-4 text-blue-600" />
+            <p className="text-sm text-blue-800">
+              We've pre-filled some fields from your uploaded documents. Please
+              review and edit as needed.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Name Section */}

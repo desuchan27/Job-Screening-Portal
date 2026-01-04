@@ -21,6 +21,7 @@ import type {
   Step3Data,
   JobPosting,
   JobRequirement,
+  ExtractedPersonalData,
 } from "@/lib/types";
 
 interface ApplicationFormProps {
@@ -37,6 +38,9 @@ export default function ApplicationForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [extractedData, setExtractedData] =
+    useState<ExtractedPersonalData | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const [formData, setFormData] = useState<ApplicationFormData>({
     step1: {
@@ -166,11 +170,53 @@ export default function ApplicationForm({
     }
   };
 
-  const handleNext = () => {
-    if (canProceed() && currentStep < 3) {
-      setCurrentStep(currentStep + 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+  const handleNext = async () => {
+    if (!canProceed() || currentStep >= 3) return;
+
+    // Special handling for Step 1 - wait for AI analysis
+    if (currentStep === 1) {
+      setIsAnalyzing(true);
+
+      // Collect all file URLs for analysis
+      const fileUrls: string[] = [];
+      if (formData.step1.applicantImage) {
+        fileUrls.push(formData.step1.applicantImage);
+      }
+      Object.values(formData.step1.requirements).forEach((value) => {
+        if (typeof value === "string" && value) {
+          fileUrls.push(value);
+        } else if (Array.isArray(value)) {
+          fileUrls.push(...value);
+        }
+      });
+
+      // Call AI analysis
+      if (fileUrls.length > 0) {
+        try {
+          const response = await fetch("/api/analyze-documents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileUrls }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+              setExtractedData(result.data);
+            }
+          }
+        } catch (error) {
+          console.error("Document analysis error:", error);
+          // Continue anyway - don't block user
+        }
+      }
+
+      setIsAnalyzing(false);
     }
+
+    // Proceed to next step
+    setCurrentStep(currentStep + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handlePrev = () => {
@@ -297,18 +343,57 @@ export default function ApplicationForm({
             </div>
 
             {/* Form Content */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
+            <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 relative">
+              {/* Loading Overlay */}
+              {isAnalyzing && (
+                <div className="absolute inset-0 bg-white bg-opacity-95 z-50 rounded-2xl flex items-center justify-center">
+                  <div className="text-center max-w-md px-6">
+                    {/* Animated Spinner */}
+                    <div className="relative w-24 h-24 mx-auto mb-6">
+                      <div className="absolute inset-0 border-8 border-blue-200 rounded-full"></div>
+                      <div className="absolute inset-0 border-8 border-transparent border-t-blue-600 rounded-full animate-spin"></div>
+                      <div
+                        className="absolute inset-3 border-8 border-transparent border-t-purple-600 rounded-full animate-spin"
+                        style={{ animationDuration: "1.5s" }}
+                      ></div>
+                    </div>
+
+                    {/* Message */}
+                    <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                      Analyzing Your Documents
+                    </h3>
+                    <p className="text-gray-600 mb-2">
+                      Please wait while our AI reads and processes your uploaded
+                      documents...
+                    </p>
+                    <p className="text-sm text-gray-500 mb-6">
+                      This usually takes 5-10 seconds
+                    </p>
+
+                    {/* Cancel Button */}
+                    <button
+                      onClick={() => setIsAnalyzing(false)}
+                      className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Cancel & Go Back
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {currentStep === 1 && (
                 <Step1Documents
                   data={formData.step1}
                   updateData={updateStep1}
                   requirements={requirements}
+                  onExtractedData={setExtractedData}
                 />
               )}
               {currentStep === 2 && (
                 <Step2PersonalDetails
                   data={formData.step2}
                   updateData={updateStep2}
+                  extractedData={extractedData}
                 />
               )}
               {currentStep === 3 && (

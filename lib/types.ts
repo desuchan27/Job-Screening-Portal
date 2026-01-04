@@ -59,3 +59,42 @@ export interface ApplicationFormData {
   step2: Step2Data;
   step3: Step3Data;
 }
+
+// AI Extraction Types
+export interface ExtractedPersonalData {
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  educationalAttainment?: string;
+  courseDegree?: string;
+  schoolGraduated?: string;
+  confidence: number; // 0-1 confidence score
+}
+
+// AI Screening Types
+export interface CriteriaMatch {
+  criteria: string;
+  matched: boolean;
+  evidence: string;
+  confidence: number;
+}
+
+export interface SkillMatch {
+  skill: string;
+  score: number; // 0-100
+  evidence: string;
+}
+
+export interface AIScreeningResult {
+  score: number; // 0-100
+  status: "QUALIFIED" | "UNQUALIFIED" | "WAITLISTED";
+  title: string;
+  description: string;
+  criteriaAnalysis: {
+    mandatoryCriteria: CriteriaMatch[];
+    softSkills: SkillMatch[];
+  };
+}
