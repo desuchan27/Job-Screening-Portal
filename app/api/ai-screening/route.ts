@@ -126,11 +126,8 @@ export async function POST(request: Request) {
       ]
     );
 
-    // Update application status based on AI analysis
-    await query(
-      `UPDATE job_application SET status = $1, updated_at = NOW() WHERE id = $2`,
-      [analysis.status, applicationId]
-    );
+    // Note: Application status remains "PENDING" for HR manual review
+    // AI analysis and score are stored but don't auto-update the status
 
     return NextResponse.json({
       success: true,

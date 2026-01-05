@@ -45,10 +45,8 @@ export async function POST(request: Request) {
         willing_to_start_asap,
         why_should_we_hire_you,
         data_privacy_consent,
-        resume_url,
-        created_at,
-        updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())`,
+        resume_url
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         applicationId,
         jobId,
