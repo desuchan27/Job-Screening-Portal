@@ -41,6 +41,8 @@ export default function ApplicationForm({
   const [extractedData, setExtractedData] =
     useState<ExtractedPersonalData | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState<string[]>([]);
+  const [currentAnalysisStep, setCurrentAnalysisStep] = useState("");
 
   const [formData, setFormData] = useState<ApplicationFormData>({
     step1: {
@@ -173,48 +175,75 @@ export default function ApplicationForm({
   const handleNext = async () => {
     if (!canProceed() || currentStep >= 3) return;
 
-    // Special handling for Step 1 - wait for AI analysis
     if (currentStep === 1) {
       setIsAnalyzing(true);
+      setAnalysisProgress([]);
+      setCurrentAnalysisStep("Preparing documents...");
 
-      // Collect all file URLs for analysis
-      const fileUrls: string[] = [];
+      const fileData: { url: string; requirementId: string }[] = [];
       if (formData.step1.applicantImage) {
-        fileUrls.push(formData.step1.applicantImage);
+        fileData.push({ url: formData.step1.applicantImage, requirementId: 'applicant-image' });
       }
-      Object.values(formData.step1.requirements).forEach((value) => {
+      Object.entries(formData.step1.requirements).forEach(([requirementId, value]) => {
         if (typeof value === "string" && value) {
-          fileUrls.push(value);
+          fileData.push({ url: value, requirementId });
         } else if (Array.isArray(value)) {
-          fileUrls.push(...value);
+          value.forEach(url => fileData.push({ url, requirementId }));
         }
       });
 
-      // Call AI analysis
-      if (fileUrls.length > 0) {
+      if (fileData.length > 0) {
         try {
-          const response = await fetch("/api/analyze-documents", {
+          const payload = { fileData }; // No jobId needed anymore for Step 1
+          const response = await fetch("/api/analyze-documents?stream=true", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fileUrls }),
+            body: JSON.stringify(payload),
           });
 
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.data) {
-              setExtractedData(result.data);
+          if (response.ok && response.body) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  try {
+                    const update = JSON.parse(line.slice(6));
+                    setCurrentAnalysisStep(update.message);
+                    setAnalysisProgress((prev) => [...prev, update.message]);
+
+                    if (update.data) {
+                      setExtractedData(update.data);
+                    }
+                  } catch (e) {
+                    console.error("Failed to parse SSE:", e);
+                  }
+                }
+              }
             }
           }
         } catch (error) {
           console.error("Document analysis error:", error);
-          // Continue anyway - don't block user
         }
       }
 
       setIsAnalyzing(false);
+      proceedToNextStep();
+    } else {
+      proceedToNextStep();
     }
+  };
 
-    // Proceed to next step
+  const proceedToNextStep = () => {
     setCurrentStep(currentStep + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -225,7 +254,7 @@ export default function ApplicationForm({
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
-
+  
   const handleSubmit = async () => {
     if (!validateStep3()) return;
 
@@ -344,35 +373,56 @@ export default function ApplicationForm({
 
             {/* Form Content */}
             <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 relative">
-              {/* Loading Overlay */}
+              {/* Loading Overlay with Real-time Progress */}
               {isAnalyzing && (
                 <div className="absolute inset-0 bg-white bg-opacity-95 z-50 rounded-2xl flex items-center justify-center">
-                  <div className="text-center max-w-md px-6">
+                  <div className="text-center max-w-md px-6 w-full">
                     {/* Animated Spinner */}
-                    <div className="relative w-24 h-24 mx-auto mb-6">
-                      <div className="absolute inset-0 border-8 border-blue-200 rounded-full"></div>
-                      <div className="absolute inset-0 border-8 border-transparent border-t-blue-600 rounded-full animate-spin"></div>
+                    <div className="relative w-20 h-20 mx-auto mb-6">
+                      <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+                      <div className="absolute inset-0 border-4 border-transparent border-t-blue-600 rounded-full animate-spin"></div>
                       <div
-                        className="absolute inset-3 border-8 border-transparent border-t-purple-600 rounded-full animate-spin"
+                        className="absolute inset-2 border-4 border-transparent border-t-purple-600 rounded-full animate-spin"
                         style={{ animationDuration: "1.5s" }}
                       ></div>
                     </div>
 
-                    {/* Message */}
-                    <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                    {/* Current Step */}
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
                       Analyzing Your Documents
                     </h3>
-                    <p className="text-gray-600 mb-2">
-                      Please wait while our AI reads and processes your uploaded
-                      documents...
+                    <p className="text-sm font-medium text-blue-600 mb-4">
+                      {currentAnalysisStep || "Preparing..."}
                     </p>
-                    <p className="text-sm text-gray-500 mb-6">
+
+                    {/* Progress Log */}
+                    {analysisProgress.length > 0 && (
+                      <div className="max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-3 mb-4 text-left">
+                        <div className="space-y-1">
+                          {analysisProgress.map((step, index) => (
+                            <div
+                              key={index}
+                              className="text-xs text-gray-600 flex items-start gap-2"
+                            >
+                              <span className="text-green-500 mt-0.5">✓</span>
+                              <span className="flex-1">{step}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-500 mb-4">
                       This usually takes 5-10 seconds
                     </p>
 
                     {/* Cancel Button */}
                     <button
-                      onClick={() => setIsAnalyzing(false)}
+                      onClick={() => {
+                        setIsAnalyzing(false);
+                        setAnalysisProgress([]);
+                        setCurrentAnalysisStep("");
+                      }}
                       className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                       Cancel & Go Back

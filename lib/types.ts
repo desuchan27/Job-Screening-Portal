@@ -88,11 +88,20 @@ export interface SkillMatch {
   evidence: string;
 }
 
+export interface DocumentAnalysis {
+  fileName: string;
+  analysis: string;
+}
+
 export interface AIScreeningResult {
   score: number; // 0-100
   status: "QUALIFIED" | "UNQUALIFIED" | "WAITLISTED";
   title: string;
   description: string;
+  intro: string; // Introduction
+  documentAnalysis: DocumentAnalysis[]; // Analysis per document
+  overallAnalysis: string; // Consolidated analysis including screening questions
+  conclusion: string; // Final verdict
   criteriaAnalysis: {
     mandatoryCriteria: CriteriaMatch[];
     softSkills: SkillMatch[];
