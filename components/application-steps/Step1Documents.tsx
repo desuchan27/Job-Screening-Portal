@@ -5,18 +5,24 @@ import { useState } from "react";
 import { useUploadThing } from "@/lib/uploadthing";
 import { Button } from "@/components/buttons/button";
 import { FilePreviewModal } from "@/components/ui/file-preview-modal";
-import type { Step1Data, JobRequirement } from "@/lib/types";
+import type {
+  Step1Data,
+  JobRequirement,
+  ExtractedPersonalData,
+} from "@/lib/types";
 
 interface Step1Props {
   data: Step1Data;
   updateData: (data: Partial<Step1Data>) => void;
   requirements: JobRequirement[];
+  onExtractedData: (data: ExtractedPersonalData) => void;
 }
 
 export default function Step1Documents({
   data,
   updateData,
   requirements,
+  onExtractedData,
 }: Step1Props) {
   return (
     <div className="space-y-6">
@@ -494,4 +500,28 @@ function DynamicFileUpload({
       )}
     </div>
   );
+}
+
+// Helper function to analyze documents
+async function analyzeDocuments(
+  fileUrls: string[],
+  onExtractedData: (data: ExtractedPersonalData) => void
+) {
+  try {
+    const response = await fetch("/api/analyze-documents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileUrls }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success && result.data) {
+        onExtractedData(result.data);
+      }
+    }
+  } catch (error) {
+    console.error("Document analysis error:", error);
+    // Silently fail - don't disrupt user experience
+  }
 }

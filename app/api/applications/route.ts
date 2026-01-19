@@ -45,10 +45,8 @@ export async function POST(request: Request) {
         willing_to_start_asap,
         why_should_we_hire_you,
         data_privacy_consent,
-        resume_url,
-        created_at,
-        updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())`,
+        resume_url
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         applicationId,
         jobId,
@@ -58,7 +56,7 @@ export async function POST(request: Request) {
         step2.lastName,
         step2.email,
         step2.phone,
-        step1.applicantImage,
+        step1.applicantImage || null,
         willingToBeAssignedInButuan,
         willingToStartASAP,
         step3.whyShouldWeHireYou,
@@ -75,34 +73,59 @@ export async function POST(request: Request) {
         // Multiple files
         for (const fileUrl of value) {
           const attachmentId = `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const fileName = fileUrl.split('/').pop() || null;
+          
           await query(
             `INSERT INTO application_attachment (
               id,
               job_application_id,
               job_requirement_id,
               file_url,
+              file_name,
               created_at,
               updated_at
-            ) VALUES ($1, $2, $3, $4, NOW(), NOW())`,
-            [attachmentId, applicationId, requirementId, fileUrl]
+            ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+            [attachmentId, applicationId, requirementId, fileUrl, fileName]
           );
         }
       } else if (typeof value === "string") {
         // Single file
         const attachmentId = `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const fileName = value.split('/').pop() || null;
+        
         await query(
           `INSERT INTO application_attachment (
             id,
             job_application_id,
             job_requirement_id,
             file_url,
+            file_name,
             created_at,
             updated_at
-          ) VALUES ($1, $2, $3, $4, NOW(), NOW())`,
-          [attachmentId, applicationId, requirementId, value]
+          ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+          [attachmentId, applicationId, requirementId, value, fileName]
         );
       }
     }
+
+    // Trigger AI screening asynchronously (don't wait for it)
+    console.log(`[Application Submission] Triggering AI screening for application: ${applicationId}`);
+    fetch(`${request.url.replace('/applications', '/ai-screening')}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId }),
+    })
+      .then(response => {
+        console.log(`[Application Submission] AI screening response status: ${response.status}`);
+        return response.json();
+      })
+      .then(data => {
+        console.log(`[Application Submission] AI screening completed:`, data);
+      })
+      .catch((error) => {
+        console.error("[Application Submission] AI screening failed:", error);
+        // Don't fail the application submission if AI screening fails
+      });
 
     return NextResponse.json({
       success: true,

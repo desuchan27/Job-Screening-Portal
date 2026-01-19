@@ -6,22 +6,22 @@ export const ourFileRouter = {
   // PDF uploader for documents
   pdfUploader: f({ pdf: { maxFileSize: "4MB", maxFileCount: 1 } })
     .onUploadComplete(async ({ file }) => {
-      console.log("PDF uploaded:", file.url);
-      return { url: file.url };
+      console.log("PDF uploaded:", file.ufsUrl);
+      return { url: file.ufsUrl };
     }),
 
   // Image uploader for 1x1 photo
   imageUploader: f({ image: { maxFileSize: "2MB", maxFileCount: 1 } })
     .onUploadComplete(async ({ file }) => {
-      console.log("Image uploaded:", file.url);
-      return { url: file.url };
+      console.log("Image uploaded:", file.ufsUrl);
+      return { url: file.ufsUrl };
     }),
 
   // Multiple certificates uploader
   certificatesUploader: f({ pdf: { maxFileSize: "4MB", maxFileCount: 10 } })
     .onUploadComplete(async ({ file }) => {
-      console.log("Certificate uploaded:", file.url);
-      return { url: file.url };
+      console.log("Certificate uploaded:", file.ufsUrl);
+      return { url: file.ufsUrl };
     }),
 } satisfies FileRouter;
 
