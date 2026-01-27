@@ -175,72 +175,9 @@ export default function ApplicationForm({
   const handleNext = async () => {
     if (!canProceed() || currentStep >= 3) return;
 
-    if (currentStep === 1) {
-      setIsAnalyzing(true);
-      setAnalysisProgress([]);
-      setCurrentAnalysisStep("Preparing documents...");
-
-      const fileData: { url: string; requirementId: string }[] = [];
-      if (formData.step1.applicantImage) {
-        fileData.push({ url: formData.step1.applicantImage, requirementId: 'applicant-image' });
-      }
-      Object.entries(formData.step1.requirements).forEach(([requirementId, value]) => {
-        if (typeof value === "string" && value) {
-          fileData.push({ url: value, requirementId });
-        } else if (Array.isArray(value)) {
-          value.forEach(url => fileData.push({ url, requirementId }));
-        }
-      });
-
-      if (fileData.length > 0) {
-        try {
-          const payload = { fileData }; // No jobId needed anymore for Step 1
-          const response = await fetch("/api/analyze-documents?stream=true", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-
-          if (response.ok && response.body) {
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = "";
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  try {
-                    const update = JSON.parse(line.slice(6));
-                    setCurrentAnalysisStep(update.message);
-                    setAnalysisProgress((prev) => [...prev, update.message]);
-
-                    if (update.data) {
-                      setExtractedData(update.data);
-                    }
-                  } catch (e) {
-                    console.error("Failed to parse SSE:", e);
-                  }
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Document analysis error:", error);
-        }
-      }
-
-      setIsAnalyzing(false);
-      proceedToNextStep();
-    } else {
-      proceedToNextStep();
-    }
+    // Proceed to next step immediately
+    // Note: Document analysis is now handled during file upload in Step 1
+    proceedToNextStep();
   };
 
   const proceedToNextStep = () => {
@@ -260,12 +197,13 @@ export default function ApplicationForm({
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/applications", {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
+      const response = await fetch(`${API_BASE_URL}/api/external/submit-application`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobId: job.id,
-          ...formData,
+          ...formData, // Structure matches requirements: step1, step2, step3 keys are already in formData
         }),
       });
 
