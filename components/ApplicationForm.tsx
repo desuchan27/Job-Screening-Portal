@@ -1,6 +1,10 @@
 "use client";
 
+
 import { useState } from "react";
+import { checkExistingApplication } from "@/app/actions/application";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+
 import {
   ChevronLeft,
   ChevronRight,
@@ -43,6 +47,8 @@ export default function ApplicationForm({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState<string[]>([]);
   const [currentAnalysisStep, setCurrentAnalysisStep] = useState("");
+  const [showResubmitConfirmation, setShowResubmitConfirmation] = useState(false);
+
 
   const [formData, setFormData] = useState<ApplicationFormData>({
     step1: {
@@ -192,9 +198,7 @@ export default function ApplicationForm({
     }
   };
   
-  const handleSubmit = async () => {
-    if (!validateStep3()) return;
-
+  const submitApplication = async () => {
     setIsSubmitting(true);
     try {
       const API_BASE_URL = process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
@@ -213,11 +217,47 @@ export default function ApplicationForm({
 
       // Success! Show success modal
       setShowSuccessModal(true);
+      setShowResubmitConfirmation(false); // Close confirmation if open
     } catch (error) {
       console.error("Submission error:", error);
       alert("Failed to submit application. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!validateStep3()) return;
+
+    // Check if we already confirmed resubmission
+    if (showResubmitConfirmation) {
+      await submitApplication();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Check for existing application
+      const exists = await checkExistingApplication(formData.step2.email, job.id);
+      
+      if (exists) {
+        setIsSubmitting(false);
+        setShowResubmitConfirmation(true);
+        return;
+      }
+
+      // No existing application, proceed directly
+      await submitApplication();
+    } catch (error) {
+       console.error("Error checking existing application:", error);
+       // If check fails, we might want to proceed or alert. 
+       // For now, let's proceed to attempt submission (api will handle duplicates if strict, 
+       // but here we want to warn). 
+       // Or safer: alert user.
+       // Let's proceed to submitApplication as fallback or alert?
+       // The user prompt implies we want to ASK. checking failed means we don't know.
+       // Let's assume false and try to submit, usually better UX than blocking.
+       await submitApplication();
     }
   };
 
@@ -505,6 +545,22 @@ export default function ApplicationForm({
         title="Application Submitted!"
         message={`Thank you for applying for ${job.title}. We have received your application and will review it shortly. You will be notified via email about the next steps.`}
         buttonText="Back to Home"
+      />
+
+      {/* Resubmit Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showResubmitConfirmation}
+        onClose={() => {
+          setShowResubmitConfirmation(false);
+          window.location.href = "/";
+        }}
+        onConfirm={handleSubmit}
+        title="Existing Application Found"
+        description={`We found an existing application for ${formData.step2.email} for this position. Do you want to resubmit your application?`}
+        confirmText="Yes, Resubmit"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={isSubmitting}
       />
     </div>
   );
