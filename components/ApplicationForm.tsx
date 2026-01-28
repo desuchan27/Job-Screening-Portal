@@ -1,6 +1,10 @@
 "use client";
 
+
 import { useState } from "react";
+import { checkExistingApplication } from "@/app/actions/application";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+
 import {
   ChevronLeft,
   ChevronRight,
@@ -43,6 +47,8 @@ export default function ApplicationForm({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState<string[]>([]);
   const [currentAnalysisStep, setCurrentAnalysisStep] = useState("");
+  const [showResubmitConfirmation, setShowResubmitConfirmation] = useState(false);
+
 
   const [formData, setFormData] = useState<ApplicationFormData>({
     step1: {
@@ -175,72 +181,9 @@ export default function ApplicationForm({
   const handleNext = async () => {
     if (!canProceed() || currentStep >= 3) return;
 
-    if (currentStep === 1) {
-      setIsAnalyzing(true);
-      setAnalysisProgress([]);
-      setCurrentAnalysisStep("Preparing documents...");
-
-      const fileData: { url: string; requirementId: string }[] = [];
-      if (formData.step1.applicantImage) {
-        fileData.push({ url: formData.step1.applicantImage, requirementId: 'applicant-image' });
-      }
-      Object.entries(formData.step1.requirements).forEach(([requirementId, value]) => {
-        if (typeof value === "string" && value) {
-          fileData.push({ url: value, requirementId });
-        } else if (Array.isArray(value)) {
-          value.forEach(url => fileData.push({ url, requirementId }));
-        }
-      });
-
-      if (fileData.length > 0) {
-        try {
-          const payload = { fileData }; // No jobId needed anymore for Step 1
-          const response = await fetch("/api/analyze-documents?stream=true", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-
-          if (response.ok && response.body) {
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = "";
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  try {
-                    const update = JSON.parse(line.slice(6));
-                    setCurrentAnalysisStep(update.message);
-                    setAnalysisProgress((prev) => [...prev, update.message]);
-
-                    if (update.data) {
-                      setExtractedData(update.data);
-                    }
-                  } catch (e) {
-                    console.error("Failed to parse SSE:", e);
-                  }
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Document analysis error:", error);
-        }
-      }
-
-      setIsAnalyzing(false);
-      proceedToNextStep();
-    } else {
-      proceedToNextStep();
-    }
+    // Proceed to next step immediately
+    // Note: Document analysis is now handled during file upload in Step 1
+    proceedToNextStep();
   };
 
   const proceedToNextStep = () => {
@@ -255,17 +198,16 @@ export default function ApplicationForm({
     }
   };
   
-  const handleSubmit = async () => {
-    if (!validateStep3()) return;
-
+  const submitApplication = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/applications", {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
+      const response = await fetch(`${API_BASE_URL}/api/external/submit-application`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobId: job.id,
-          ...formData,
+          ...formData, // Structure matches requirements: step1, step2, step3 keys are already in formData
         }),
       });
 
@@ -275,11 +217,47 @@ export default function ApplicationForm({
 
       // Success! Show success modal
       setShowSuccessModal(true);
+      setShowResubmitConfirmation(false); // Close confirmation if open
     } catch (error) {
       console.error("Submission error:", error);
       alert("Failed to submit application. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!validateStep3()) return;
+
+    // Check if we already confirmed resubmission
+    if (showResubmitConfirmation) {
+      await submitApplication();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Check for existing application
+      const exists = await checkExistingApplication(formData.step2.email, job.id);
+      
+      if (exists) {
+        setIsSubmitting(false);
+        setShowResubmitConfirmation(true);
+        return;
+      }
+
+      // No existing application, proceed directly
+      await submitApplication();
+    } catch (error) {
+       console.error("Error checking existing application:", error);
+       // If check fails, we might want to proceed or alert. 
+       // For now, let's proceed to attempt submission (api will handle duplicates if strict, 
+       // but here we want to warn). 
+       // Or safer: alert user.
+       // Let's proceed to submitApplication as fallback or alert?
+       // The user prompt implies we want to ASK. checking failed means we don't know.
+       // Let's assume false and try to submit, usually better UX than blocking.
+       await submitApplication();
     }
   };
 
@@ -567,6 +545,22 @@ export default function ApplicationForm({
         title="Application Submitted!"
         message={`Thank you for applying for ${job.title}. We have received your application and will review it shortly. You will be notified via email about the next steps.`}
         buttonText="Back to Home"
+      />
+
+      {/* Resubmit Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showResubmitConfirmation}
+        onClose={() => {
+          setShowResubmitConfirmation(false);
+          window.location.href = "/";
+        }}
+        onConfirm={handleSubmit}
+        title="Existing Application Found"
+        description={`We found an existing application for ${formData.step2.email} for this position. Do you want to resubmit your application?`}
+        confirmText="Yes, Resubmit"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={isSubmitting}
       />
     </div>
   );

@@ -23,6 +23,13 @@ export const ourFileRouter = {
       console.log("Certificate uploaded:", file.ufsUrl);
       return { url: file.ufsUrl };
     }),
+
+  // Multiple images uploader
+  multipleImageUploader: f({ image: { maxFileSize: "4MB", maxFileCount: 10 } })
+    .onUploadComplete(async ({ file }) => {
+      console.log("Multiple image uploaded:", file.ufsUrl);
+      return { url: file.ufsUrl };
+    }),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;

@@ -56,6 +56,21 @@ export default function Step1Documents({
               },
             })
           }
+          onUploadComplete={(url) => {
+             console.log("Upload complete for:", requirement.name, url);
+             // Check if this is a resume or cv to trigger extraction
+             if (
+               requirement.name.toLowerCase().includes("resume") ||
+               requirement.name.toLowerCase().includes("cv") ||
+               requirement.name.toLowerCase().includes("curriculum vitae")
+             ) {
+                console.log("Triggering analysis for:", requirement.name);
+                // Determine type for hint
+                // Determine type for hint
+                const typeHint = requirement.file_type || "pdf"; 
+                analyzeDocuments([url], onExtractedData, typeHint);
+             }
+          }}
         />
       ))}
     </div>
@@ -202,23 +217,31 @@ interface DynamicFileUploadProps {
   requirement: JobRequirement;
   value: string | string[] | undefined;
   onChange: (value: string | string[]) => void;
+  onUploadComplete?: (url: string) => void;
 }
 
 function DynamicFileUpload({
   requirement,
   value,
   onChange,
+  onUploadComplete,
 }: DynamicFileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>("");
 
   // Determine endpoint based on file type
-  const endpoint = requirement.accepts_multiple
-    ? "certificatesUploader"
-    : requirement.name.toLowerCase().includes("photo")
-    ? "imageUploader"
-    : "pdfUploader";
+  let endpoint = "pdfUploader";
+  if (requirement.file_type === "image") {
+    endpoint = requirement.accepts_multiple
+      ? "multipleImageUploader"
+      : "imageUploader";
+  } else {
+    // pdf (or default)
+    endpoint = requirement.accepts_multiple
+      ? "certificatesUploader"
+      : "pdfUploader";
+  }
 
   const { startUpload } = useUploadThing(endpoint as any);
 
@@ -245,9 +268,16 @@ function DynamicFileUpload({
         const currentUrls = Array.isArray(value) ? value : [];
         const newUrls = result.map((r) => r.url);
         onChange([...currentUrls, ...newUrls]);
+        // Trigger completion for the last uploaded file (or all if we supported batched analysis)
+        if (onUploadComplete && result.length > 0) {
+           onUploadComplete(result[result.length - 1].url);
+        }
       } else {
         // Single file
         onChange(result[0].url);
+        if (onUploadComplete) {
+           onUploadComplete(result[0].url);
+        }
       }
     } catch (error) {
       console.error("Upload error:", error);
@@ -288,9 +318,7 @@ function DynamicFileUpload({
     setShowPreview(true);
   };
 
-  const fileType = requirement.name.toLowerCase().includes("photo")
-    ? "image"
-    : "pdf";
+  const fileType = requirement.file_type || "pdf";
 
   const accept = fileType === "image" ? "image/*" : ".pdf";
 
@@ -382,6 +410,10 @@ function DynamicFileUpload({
                                 const newUrls = [...currentUrls];
                                 newUrls[index] = result[0].url;
                                 onChange(newUrls);
+                                
+                                if (onUploadComplete) {
+                                   onUploadComplete(result[0].url);
+                                }
                               }
                             } catch (error) {
                               console.error("Upload error:", error);
@@ -505,20 +537,46 @@ function DynamicFileUpload({
 // Helper function to analyze documents
 async function analyzeDocuments(
   fileUrls: string[],
-  onExtractedData: (data: ExtractedPersonalData) => void
+  onExtractedData: (data: ExtractedPersonalData) => void,
+  typeHint: string = "pdf"
 ) {
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
+
   try {
-    const response = await fetch("/api/analyze-documents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileUrls }),
-    });
+    console.log("Analyzing documents:", fileUrls);
+    // Process the first file (assuming resume is first or you iterate)
+    const fileUrl = fileUrls[0];
+    if (!fileUrl) return;
+
+    // WORKAROUND: External API requires .pdf or image extension in URL string
+    // Append a dummy fragment to satisfy the check without breaking the URL
+    let finalUrl = fileUrl;
+    if (typeHint === "pdf" && !fileUrl.toLowerCase().includes(".pdf")) {
+        finalUrl += "#.pdf";
+    } else if (typeHint === "image" && !fileUrl.match(/\.(jpg|jpeg|png|webp)/i)) {
+        finalUrl += "#.jpg";
+    }
+
+    console.log("Fetching extraction from:", `${API_BASE_URL}/api/external/extract-personal-data`, "with URL:", finalUrl);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/external/extract-personal-data`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileUrl: finalUrl }),
+      }
+    );
 
     if (response.ok) {
       const result = await response.json();
       if (result.success && result.data) {
         onExtractedData(result.data);
       }
+    } else {
+        const errorText = await response.text();
+        console.error("External API extraction failed:", response.status, errorText);
     }
   } catch (error) {
     console.error("Document analysis error:", error);
