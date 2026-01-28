@@ -18,6 +18,7 @@ export interface JobRequirement {
   name: string;
   is_mandatory: boolean;
   accepts_multiple: boolean;
+  file_type: "image" | "pdf";
   order: number;
 }
 

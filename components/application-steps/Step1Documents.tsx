@@ -66,11 +66,8 @@ export default function Step1Documents({
              ) {
                 console.log("Triggering analysis for:", requirement.name);
                 // Determine type for hint
-                const isImage = requirement.name.toLowerCase().includes("photo"); // Resumes usually PDF but could be image? 
-                // Actually resumes are usually PDF, but let's assume PDF default for resumes unless specified.
-                // The DynamicFileUpload logic says: includes("photo") ? "image" : "pdf".
-                // So for resumes (no "photo" in name), it's "pdf".
-                const typeHint = "pdf"; 
+                // Determine type for hint
+                const typeHint = requirement.file_type || "pdf"; 
                 analyzeDocuments([url], onExtractedData, typeHint);
              }
           }}
@@ -234,11 +231,17 @@ function DynamicFileUpload({
   const [previewUrl, setPreviewUrl] = useState<string>("");
 
   // Determine endpoint based on file type
-  const endpoint = requirement.accepts_multiple
-    ? "certificatesUploader"
-    : requirement.name.toLowerCase().includes("photo")
-    ? "imageUploader"
-    : "pdfUploader";
+  let endpoint = "pdfUploader";
+  if (requirement.file_type === "image") {
+    endpoint = requirement.accepts_multiple
+      ? "multipleImageUploader"
+      : "imageUploader";
+  } else {
+    // pdf (or default)
+    endpoint = requirement.accepts_multiple
+      ? "certificatesUploader"
+      : "pdfUploader";
+  }
 
   const { startUpload } = useUploadThing(endpoint as any);
 
@@ -315,9 +318,7 @@ function DynamicFileUpload({
     setShowPreview(true);
   };
 
-  const fileType = requirement.name.toLowerCase().includes("photo")
-    ? "image"
-    : "pdf";
+  const fileType = requirement.file_type || "pdf";
 
   const accept = fileType === "image" ? "image/*" : ".pdf";
 

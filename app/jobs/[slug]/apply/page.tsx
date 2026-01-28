@@ -67,9 +67,10 @@ export default async function ApplyPage({ params }: PageProps) {
     name: string;
     is_mandatory: boolean;
     accepts_multiple: boolean;
+    file_type: "image" | "pdf";
     order: number;
   }>(
-    `SELECT id, name, is_mandatory, accepts_multiple, "order" 
+    `SELECT id, name, is_mandatory, accepts_multiple, file_type, "order" 
      FROM job_requirement 
      ORDER BY "order" ASC, created_at ASC`
   );
