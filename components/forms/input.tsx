@@ -1,13 +1,13 @@
 "use client";
 
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, X } from "lucide-react";
 import { forwardRef } from "react";
 
 type InputProps = {
   label?: string;
   isMandatory?: boolean;
-  type?: "text" | "email" | "password" | "date";
-  variant?: "default" | "textarea";
+  type?: "text" | "email" | "password" | "date" | "search";
+  variant?: "default" | "textarea" | "search";
   size?: "sm" | "md" | "lg";
   placeholder?: string;
   value?: string;
@@ -17,12 +17,15 @@ type InputProps = {
   onKeyDown?: (
     e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => void;
+  onClear?: () => void;
   name?: string;
   id?: string;
   rows?: number;
   className?: string;
   leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
   autoFocus?: boolean;
+  showClearButton?: boolean;
 };
 
 export const Input = forwardRef<
@@ -40,12 +43,15 @@ export const Input = forwardRef<
       value,
       onChange,
       onKeyDown,
+      onClear,
       name,
       id,
       rows = 4,
       className = "",
       leftIcon,
+      rightIcon,
       autoFocus = false,
+      showClearButton = false,
     },
     ref
   ) => {
@@ -56,9 +62,14 @@ export const Input = forwardRef<
       lg: "px-6 py-3 text-lg",
     };
 
-    const baseClasses = `w-full ${sizeClasses[size]} border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`;
+    const baseClasses = `w-full ${sizeClasses[size]} border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-accent focus:border-transparent transition-all`;
+    
+    // Enhanced styling for search variant
 
     const inputId = id || name;
+    const hasLeftIcon = !!leftIcon;
+    const hasRightIcon = !!rightIcon || (showClearButton && value);
+    const hasClearButton = showClearButton && value && value.length > 0;
 
     return (
       <div className={`flex flex-col gap-2 ${className}`}>
@@ -98,14 +109,16 @@ export const Input = forwardRef<
             autoFocus={autoFocus}
             className={baseClasses}
           />
-        ) : leftIcon ? (
+        ) : (leftIcon || hasRightIcon) ? (
           <div className="relative">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-              {leftIcon}
-            </div>
+            {leftIcon && (
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                {leftIcon}
+              </div>
+            )}
             <input
               ref={ref as React.Ref<HTMLInputElement>}
-              type={type}
+              type={type === "search" ? "text" : type}
               id={inputId}
               name={name}
               placeholder={placeholder}
@@ -113,13 +126,35 @@ export const Input = forwardRef<
               onChange={onChange}
               onKeyDown={onKeyDown}
               autoFocus={autoFocus}
-              className={`${baseClasses} pl-10`}
+              className={`${baseClasses} ${
+                hasLeftIcon ? "pl-10" : ""
+              } ${
+                hasRightIcon ? "pr-10" : ""
+              }`}
             />
+            {hasRightIcon && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                {hasClearButton && (
+                  <button
+                    type="button"
+                    onClick={onClear}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                {rightIcon && (
+                  <div className="text-gray-400">
+                    {rightIcon}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <input
             ref={ref as React.Ref<HTMLInputElement>}
-            type={type}
+            type={type === "search" ? "text" : type}
             id={inputId}
             name={name}
             placeholder={placeholder}
@@ -127,7 +162,7 @@ export const Input = forwardRef<
             onChange={onChange}
             onKeyDown={onKeyDown}
             autoFocus={autoFocus}
-            className={baseClasses}
+            className={`${baseClasses}`}
           />
         )}
       </div>
