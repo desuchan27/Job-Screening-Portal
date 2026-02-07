@@ -1,16 +1,11 @@
 "use client";
 
-
 import { useState } from "react";
 import { checkExistingApplication } from "@/app/actions/application";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import JobCard from "@/components/JobCard";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  Check,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/buttons/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SuccessModal } from "@/components/ui/success-modal";
@@ -26,6 +21,7 @@ import type {
   JobRequirement,
   ExtractedPersonalData,
 } from "@/lib/types";
+import Link from "next/link";
 
 interface ApplicationFormProps {
   job: JobPosting;
@@ -46,8 +42,8 @@ export default function ApplicationForm({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState<string[]>([]);
   const [currentAnalysisStep, setCurrentAnalysisStep] = useState("");
-  const [showResubmitConfirmation, setShowResubmitConfirmation] = useState(false);
-
+  const [showResubmitConfirmation, setShowResubmitConfirmation] =
+    useState(false);
 
   const [formData, setFormData] = useState<ApplicationFormData>({
     step1: {
@@ -196,19 +192,23 @@ export default function ApplicationForm({
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
-  
+
   const submitApplication = async () => {
     setIsSubmitting(true);
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
-      const response = await fetch(`${API_BASE_URL}/api/external/submit-application`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobId: job.id,
-          ...formData, // Structure matches requirements: step1, step2, step3 keys are already in formData
-        }),
-      });
+      const API_BASE_URL =
+        process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
+      const response = await fetch(
+        `${API_BASE_URL}/api/external/submit-application`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobId: job.id,
+            ...formData, // Structure matches requirements: step1, step2, step3 keys are already in formData
+          }),
+        },
+      );
 
       if (!response.ok) {
         throw new Error("Failed to submit application");
@@ -237,8 +237,11 @@ export default function ApplicationForm({
     setIsSubmitting(true);
     try {
       // Check for existing application
-      const exists = await checkExistingApplication(formData.step2.email, job.id);
-      
+      const exists = await checkExistingApplication(
+        formData.step2.email,
+        job.id,
+      );
+
       if (exists) {
         setIsSubmitting(false);
         setShowResubmitConfirmation(true);
@@ -248,15 +251,15 @@ export default function ApplicationForm({
       // No existing application, proceed directly
       await submitApplication();
     } catch (error) {
-       console.error("Error checking existing application:", error);
-       // If check fails, we might want to proceed or alert. 
-       // For now, let's proceed to attempt submission (api will handle duplicates if strict, 
-       // but here we want to warn). 
-       // Or safer: alert user.
-       // Let's proceed to submitApplication as fallback or alert?
-       // The user prompt implies we want to ASK. checking failed means we don't know.
-       // Let's assume false and try to submit, usually better UX than blocking.
-       await submitApplication();
+      console.error("Error checking existing application:", error);
+      // If check fails, we might want to proceed or alert.
+      // For now, let's proceed to attempt submission (api will handle duplicates if strict,
+      // but here we want to warn).
+      // Or safer: alert user.
+      // Let's proceed to submitApplication as fallback or alert?
+      // The user prompt implies we want to ASK. checking failed means we don't know.
+      // Let's assume false and try to submit, usually better UX than blocking.
+      await submitApplication();
     }
   };
 
@@ -289,6 +292,13 @@ export default function ApplicationForm({
           {/* Left Column - Form (Mobile: full width, Desktop: 60%) */}
           <div className="flex-1 lg:max-w-2xl">
             {/* Progress Indicator */}
+            <Link
+              href="/"
+              className="inline-block text-black font-bold text-[0.875rem] mb-8"
+            >
+              <ArrowLeft className="inline-block mr-2 w-4 h-4" />
+              Go Back
+            </Link>
             <div className="mb-8">
               <div className="flex items-center justify-between">
                 {steps.map((step, index) => (
@@ -299,8 +309,8 @@ export default function ApplicationForm({
                           currentStep > step.number
                             ? "bg-accent text-white"
                             : currentStep === step.number
-                            ? "bg-black text-white"
-                            : "bg-gray-200 text-gray-500"
+                              ? "bg-black text-white"
+                              : "bg-gray-200 text-gray-500"
                         }`}
                       >
                         {currentStep > step.number ? (
@@ -461,7 +471,7 @@ export default function ApplicationForm({
           {/* Right Column - Job Details (Desktop Only) */}
           <div className="hidden lg:block lg:w-96 shrink-0">
             <div className="sticky top-8 space-y-6">
-              <JobCard 
+              <JobCard
                 job={{ ...job, qualifications }}
                 showApplyButton={false}
                 showDescription={true}
