@@ -61,7 +61,7 @@ export default function Step2PersonalDetails({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-md md:text-2xl font-bold text-gray-900 mb-2">
           Personal Information
         </h2>
         <p className="text-gray-600">

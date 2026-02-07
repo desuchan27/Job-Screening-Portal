@@ -30,7 +30,7 @@ export function SuccessModal({
           </div>
 
           {/* Title */}
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">{title}</h3>
+          <h3 className="text-md md:text-2xl font-bold text-gray-900 mb-2">{title}</h3>
 
           {/* Message */}
           <p className="text-gray-600 mb-6">{message}</p>

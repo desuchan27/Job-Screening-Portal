@@ -27,11 +27,11 @@ export default function Step1Documents({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-[1rem] xl:text-[1.5rem] font-bold text-gray-900 mb-[0.5rem] xl:mb-[1rem]">
           Upload Required Documents
         </h2>
-        <p className="text-slate-600">
-          Please upload all required documents. Files marked with * are
+        <p className="text-[0.875rem] text-slate-600">
+          Please upload all required documents. Files marked with <span className="text-red-500">*</span> are
           mandatory.
         </p>
       </div>
@@ -117,7 +117,7 @@ function ApplicantImageUpload({ value, onChange }: ApplicantImageUploadProps) {
 
   return (
     <div className="flex flex-col gap-2 p-6 bg-slate-50 border border-slate-200 hover:border-black transition-all rounded-xl">
-      <label className="text-sm font-semibold text-gray-900">
+      <label className="text-left text-sm font-semibold text-gray-900">
         Applicant Photo (1x1 or 2x2)
         <span className="text-red-500 ml-1">*</span>
       </label>
@@ -200,10 +200,10 @@ function ApplicantImageUpload({ value, onChange }: ApplicantImageUploadProps) {
           ) : (
             <>
               <Upload className="w-10 h-10 text-gray-400 mb-3" />
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-center text-sm font-semibold text-gray-900">
                 Click to upload your photo
               </p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-center text-xs text-slate-500 mt-1">
                 Image files (Max 2MB)
               </p>
             </>
