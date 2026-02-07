@@ -11,6 +11,7 @@ export interface JobPosting {
   created_by: string | null;
   created_at: Date;
   updated_at: Date;
+  qualifications?: string[]; // Optional for backwards compatibility
 }
 
 export interface JobRequirement {
