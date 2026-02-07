@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { query } from "@/lib/db";
 import type { JobPosting } from "@/lib/types";
 import ApplicationForm from "@/components/ApplicationForm";
+import Link from "next/link";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -33,10 +34,23 @@ export default async function ApplyPage({ params }: PageProps) {
     notFound();
   }
 
-  // Check if deadline has passed
-  if (job.deadline && new Date(job.deadline) < new Date()) {
+  // Check if deadline has passed (using Philippine Time UTC+8)
+  // Allow applications on the deadline day until midnight PHT
+  const now = new Date();
+  const phtOffset = 8 * 60; // PHT is UTC+8
+  const localOffset = now.getTimezoneOffset();
+  const phtTime = new Date(now.getTime() + (phtOffset + localOffset) * 60 * 1000);
+  const today = new Date(phtTime.getFullYear(), phtTime.getMonth(), phtTime.getDate());
+  
+  const deadlineDate = job.deadline ? new Date(job.deadline) : null;
+  const deadlineDay = deadlineDate ? new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate()) : null;
+  
+  // Only close if we're past the deadline day (day after deadline)
+  const isPastDeadline = deadlineDay && deadlineDay.getTime() < today.getTime();
+  
+  if (isPastDeadline) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-gray-50 via-blue-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-linear-to-br flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
             Application Closed
@@ -44,12 +58,12 @@ export default async function ApplyPage({ params }: PageProps) {
           <p className="text-gray-600 mb-6">
             The application deadline for this position has passed.
           </p>
-          <a
+          <Link
             href="/"
-            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-block px-6 py-3 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
           >
             View Other Positions
-          </a>
+          </Link>
         </div>
       </div>
     );
