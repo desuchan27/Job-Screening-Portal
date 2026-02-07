@@ -25,8 +25,8 @@ export function SuccessModal({
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
         <div className="flex flex-col items-center text-center">
           {/* Success Icon */}
-          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-            <CheckCircle className="w-10 h-10 text-green-600" />
+          <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-4">
+            <CheckCircle className="w-10 h-10 text-accent" />
           </div>
 
           {/* Title */}

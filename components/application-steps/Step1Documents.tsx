@@ -1,6 +1,6 @@
 "use client";
 
-import { Upload, FileText, X, CheckCircle2, Eye } from "lucide-react";
+import { Upload, FileText, X, CheckCircle2, Eye, CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { useUploadThing } from "@/lib/uploadthing";
 import { Button } from "@/components/buttons/button";
@@ -30,7 +30,7 @@ export default function Step1Documents({
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           Upload Required Documents
         </h2>
-        <p className="text-gray-600">
+        <p className="text-slate-600">
           Please upload all required documents. Files marked with * are
           mandatory.
         </p>
@@ -116,19 +116,31 @@ function ApplicantImageUpload({ value, onChange }: ApplicantImageUploadProps) {
   };
 
   return (
-    <div className="flex flex-col gap-2 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
-      <label className="text-sm font-semibold text-blue-900">
+    <div className="flex flex-col gap-2 p-6 bg-slate-50 border border-slate-200 hover:border-black transition-all rounded-xl">
+      <label className="text-sm font-semibold text-gray-900">
         Applicant Photo (1x1 or 2x2)
         <span className="text-red-500 ml-1">*</span>
       </label>
-      <p className="text-xs text-blue-700 mb-2">
+      <p className="text-xs text-gray-700 mb-2">
         Please upload a recent 1x1 photo
       </p>
 
       {value ? (
         // Success State - Only show uploaded photo with actions
-        <div className="flex items-center gap-4 p-4 bg-white rounded-lg border-2 border-green-300">
-          <div className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-green-400">
+        <div className="flex items-center gap-4 p-4 bg-white rounded-lg border border-slate-200 hover:border-black transition-all relative">
+          {/* Loading Overlay for Reupload */}
+          {isUploading && (
+            <div className="absolute inset-0 bg-white bg-opacity-95 rounded-lg flex items-center justify-center z-10">
+              <div className="text-center">
+                <div className="w-10 h-10 border-4 border-slate-600 border-t-transparent rounded-full animate-spin mb-3 mx-auto" />
+                <p className="text-sm font-medium text-gray-700">
+                  Uploading new photo...
+                </p>
+                <p className="text-xs text-slate-500 mt-1">Please wait</p>
+              </div>
+            </div>
+          )}
+          <div className="relative w-24 h-24 rounded-lg overflow-hidden">
             <img
               src={value}
               alt="Applicant"
@@ -151,7 +163,7 @@ function ApplicantImageUpload({ value, onChange }: ApplicantImageUploadProps) {
                   className="hidden"
                   disabled={isUploading}
                 />
-                <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors">
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-black rounded-md hover:bg-black/75 transition-colors">
                   <Upload className="w-3 h-3" />
                   Change Photo
                 </span>
@@ -169,7 +181,7 @@ function ApplicantImageUpload({ value, onChange }: ApplicantImageUploadProps) {
         </div>
       ) : (
         // Upload State
-        <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-100 transition-colors bg-white">
+        <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-slate-50 transition-colors bg-white">
           <input
             type="file"
             accept="image/*"
@@ -179,19 +191,19 @@ function ApplicantImageUpload({ value, onChange }: ApplicantImageUploadProps) {
           />
           {isUploading ? (
             <>
-              <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
+              <div className="w-10 h-10 border-4 border-slate-600 border-t-transparent rounded-full animate-spin mb-3" />
               <p className="text-sm font-medium text-gray-700">
                 Uploading your photo...
               </p>
-              <p className="text-xs text-gray-500 mt-1">Please wait</p>
+              <p className="text-xs text-slate-500 mt-1">Please wait</p>
             </>
           ) : (
             <>
-              <Upload className="w-10 h-10 text-blue-400 mb-3" />
+              <Upload className="w-10 h-10 text-gray-400 mb-3" />
               <p className="text-sm font-semibold text-gray-900">
                 Click to upload your photo
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Image files (Max 2MB)
               </p>
             </>
@@ -227,11 +239,12 @@ function DynamicFileUpload({
   onUploadComplete,
 }: DynamicFileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>("");
 
   // Determine endpoint based on file type
-  let endpoint = "pdfUploader";
+  let endpoint: "imageUploader" | "multipleImageUploader" | "pdfUploader" | "certificatesUploader" = "pdfUploader";
   if (requirement.file_type === "image") {
     endpoint = requirement.accepts_multiple
       ? "multipleImageUploader"
@@ -243,7 +256,7 @@ function DynamicFileUpload({
       : "pdfUploader";
   }
 
-  const { startUpload } = useUploadThing(endpoint as any);
+  const { startUpload } = useUploadThing(endpoint);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -336,7 +349,7 @@ function DynamicFileUpload({
         // Multiple files display
         <div className="space-y-3">
           {/* Add Files Button - Always on top */}
-          <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+          <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-slate-50 transition-colors">
             <input
               type="file"
               accept={accept}
@@ -347,8 +360,8 @@ function DynamicFileUpload({
             />
             {isUploading ? (
               <>
-                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm text-gray-600">Uploading...</span>
+                <div className="w-5 h-5 border-2 border-slate-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-slate-600">Uploading...</span>
               </>
             ) : (
               <>
@@ -372,14 +385,23 @@ function DynamicFileUpload({
                 return (
                   <div
                     key={index}
-                    className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                    className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors relative"
                   >
-                    <FileText className="w-5 h-5 text-blue-600 shrink-0" />
+                    {/* Loading Overlay for Replace */}
+                    {uploadingIndex === index && (
+                      <div className="absolute inset-0 bg-white bg-opacity-95 rounded-lg flex items-center justify-center z-10">
+                        <div className="text-center">
+                          <div className="w-6 h-6 border-2 border-slate-600 border-t-transparent rounded-full animate-spin mb-1 mx-auto" />
+                          <p className="text-xs text-slate-600">Uploading...</p>
+                        </div>
+                      </div>
+                    )}
+                    <FileText className="w-5 h-5 text-slate-600 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {requirement.name} {index + 1}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-xs text-slate-500 truncate">
                         {filename}
                       </p>
                     </div>
@@ -392,6 +414,7 @@ function DynamicFileUpload({
                             const file = e.target.files?.[0];
                             if (!file) return;
 
+                            setUploadingIndex(index);
                             setIsUploading(true);
                             try {
                               // Delete old file
@@ -420,19 +443,20 @@ function DynamicFileUpload({
                               alert("Failed to upload file. Please try again.");
                             } finally {
                               setIsUploading(false);
+                              setUploadingIndex(null);
                             }
                           }}
                           className="hidden"
                           disabled={isUploading}
                         />
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded hover:bg-blue-100 transition-colors">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors">
                           <Upload className="w-3 h-3" />
                           Change
                         </span>
                       </label>
                       <button
                         onClick={() => handlePreview(url)}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-700 bg-slate-50 rounded hover:bg-gray-100 transition-colors"
                         type="button"
                       >
                         <Eye className="w-3 h-3" />
@@ -458,8 +482,16 @@ function DynamicFileUpload({
         <>
           {typeof value === "string" && value ? (
             // Success State
-            <div className="flex items-center gap-3 p-4 bg-white border-2 border-green-300 rounded-lg">
-              <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+            <div className="flex items-start gap-3 p-[1rem] md:p-[1.5rem] bg-white border border-slate-200 hover:border-black transition-all rounded-lg relative">
+              {/* Loading Overlay for Reupload */}
+              {isUploading && (
+                <div className="absolute inset-0 bg-white bg-opacity-95 rounded-lg flex items-center justify-center z-10">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-slate-600 border-t-transparent rounded-full animate-spin mb-2 mx-auto" />
+                    <p className="text-sm text-slate-600">Uploading new file...</p>
+                  </div>
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-green-900 mb-2">
                   File uploaded successfully
@@ -473,7 +505,7 @@ function DynamicFileUpload({
                       className="hidden"
                       disabled={isUploading}
                     />
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors">
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-black rounded-md hover:bg-black/75 transition-colors">
                       <Upload className="w-3 h-3" />
                       Change File
                     </span>
@@ -488,10 +520,11 @@ function DynamicFileUpload({
                   </button>
                 </div>
               </div>
+              <CheckIcon className="w-4 h-4 text-green-600 shrink-0" />
             </div>
           ) : (
             // Upload State
-            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-slate-50 transition-colors">
               <input
                 type="file"
                 accept={accept}
@@ -501,8 +534,8 @@ function DynamicFileUpload({
               />
               {isUploading ? (
                 <>
-                  <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-2" />
-                  <p className="text-sm text-gray-600">Uploading...</p>
+                  <div className="w-8 h-8 border-4 border-slate-600 border-t-transparent rounded-full animate-spin mb-2" />
+                  <p className="text-sm text-slate-600">Uploading...</p>
                 </>
               ) : (
                 <>
@@ -510,7 +543,7 @@ function DynamicFileUpload({
                   <p className="text-sm font-medium text-gray-700">
                     Click to upload file
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     {fileType === "image" ? "Image files" : "PDF"} (Max 4MB)
                   </p>
                 </>

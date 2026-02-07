@@ -1,17 +1,11 @@
 "use client";
 
-
 import { useState } from "react";
 import { checkExistingApplication } from "@/app/actions/application";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import JobCard from "@/components/JobCard";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  Check,
-  Calendar,
-  Clock,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/buttons/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SuccessModal } from "@/components/ui/success-modal";
@@ -27,6 +21,7 @@ import type {
   JobRequirement,
   ExtractedPersonalData,
 } from "@/lib/types";
+import Link from "next/link";
 
 interface ApplicationFormProps {
   job: JobPosting;
@@ -47,8 +42,8 @@ export default function ApplicationForm({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState<string[]>([]);
   const [currentAnalysisStep, setCurrentAnalysisStep] = useState("");
-  const [showResubmitConfirmation, setShowResubmitConfirmation] = useState(false);
-
+  const [showResubmitConfirmation, setShowResubmitConfirmation] =
+    useState(false);
 
   const [formData, setFormData] = useState<ApplicationFormData>({
     step1: {
@@ -197,19 +192,23 @@ export default function ApplicationForm({
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
-  
+
   const submitApplication = async () => {
     setIsSubmitting(true);
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
-      const response = await fetch(`${API_BASE_URL}/api/external/submit-application`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobId: job.id,
-          ...formData, // Structure matches requirements: step1, step2, step3 keys are already in formData
-        }),
-      });
+      const API_BASE_URL =
+        process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
+      const response = await fetch(
+        `${API_BASE_URL}/api/external/submit-application`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobId: job.id,
+            ...formData, // Structure matches requirements: step1, step2, step3 keys are already in formData
+          }),
+        },
+      );
 
       if (!response.ok) {
         throw new Error("Failed to submit application");
@@ -238,8 +237,11 @@ export default function ApplicationForm({
     setIsSubmitting(true);
     try {
       // Check for existing application
-      const exists = await checkExistingApplication(formData.step2.email, job.id);
-      
+      const exists = await checkExistingApplication(
+        formData.step2.email,
+        job.id,
+      );
+
       if (exists) {
         setIsSubmitting(false);
         setShowResubmitConfirmation(true);
@@ -249,15 +251,15 @@ export default function ApplicationForm({
       // No existing application, proceed directly
       await submitApplication();
     } catch (error) {
-       console.error("Error checking existing application:", error);
-       // If check fails, we might want to proceed or alert. 
-       // For now, let's proceed to attempt submission (api will handle duplicates if strict, 
-       // but here we want to warn). 
-       // Or safer: alert user.
-       // Let's proceed to submitApplication as fallback or alert?
-       // The user prompt implies we want to ASK. checking failed means we don't know.
-       // Let's assume false and try to submit, usually better UX than blocking.
-       await submitApplication();
+      console.error("Error checking existing application:", error);
+      // If check fails, we might want to proceed or alert.
+      // For now, let's proceed to attempt submission (api will handle duplicates if strict,
+      // but here we want to warn).
+      // Or safer: alert user.
+      // Let's proceed to submitApplication as fallback or alert?
+      // The user prompt implies we want to ASK. checking failed means we don't know.
+      // Let's assume false and try to submit, usually better UX than blocking.
+      await submitApplication();
     }
   };
 
@@ -272,23 +274,8 @@ export default function ApplicationForm({
     { number: 3, title: "Screening" },
   ];
 
-  const formattedDeadline = job.deadline
-    ? new Date(job.deadline).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : "No deadline";
-
-  const daysRemaining = job.deadline
-    ? Math.ceil(
-        (new Date(job.deadline).getTime() - new Date().getTime()) /
-          (1000 * 60 * 60 * 24)
-      )
-    : null;
-
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 via-blue-50 to-purple-50 py-12">
+    <div className="min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header - Mobile Only */}
         <div className="mb-8 text-center lg:hidden">
@@ -305,6 +292,13 @@ export default function ApplicationForm({
           {/* Left Column - Form (Mobile: full width, Desktop: 60%) */}
           <div className="flex-1 lg:max-w-2xl">
             {/* Progress Indicator */}
+            <Link
+              href="/"
+              className="inline-block text-black font-bold text-[0.875rem] mb-8"
+            >
+              <ArrowLeft className="inline-block mr-2 w-4 h-4" />
+              Go Back
+            </Link>
             <div className="mb-8">
               <div className="flex items-center justify-between">
                 {steps.map((step, index) => (
@@ -313,10 +307,10 @@ export default function ApplicationForm({
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
                           currentStep > step.number
-                            ? "bg-green-500 text-white"
+                            ? "bg-accent text-white"
                             : currentStep === step.number
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-200 text-gray-500"
+                              ? "bg-black text-white"
+                              : "bg-gray-200 text-gray-500"
                         }`}
                       >
                         {currentStep > step.number ? (
@@ -339,7 +333,7 @@ export default function ApplicationForm({
                       <div
                         className={`h-1 flex-1 mx-2 transition-all ${
                           currentStep > step.number
-                            ? "bg-green-500"
+                            ? "bg-accent"
                             : "bg-gray-200"
                         }`}
                       />
@@ -350,7 +344,7 @@ export default function ApplicationForm({
             </div>
 
             {/* Form Content */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 relative">
+            <div className="bg-white rounded-2xl border border-slate-200 hover:border-black transition-all hover:shadow-md p-8 mb-6 relative">
               {/* Loading Overlay with Real-time Progress */}
               {isAnalyzing && (
                 <div className="absolute inset-0 bg-white bg-opacity-95 z-50 rounded-2xl flex items-center justify-center">
@@ -477,62 +471,12 @@ export default function ApplicationForm({
           {/* Right Column - Job Details (Desktop Only) */}
           <div className="hidden lg:block lg:w-96 shrink-0">
             <div className="sticky top-8 space-y-6">
-              {/* Job Card */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-                <div className="flex items-start justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {job.title}
-                  </h2>
-                  <StatusBadge status={job.status} />
-                </div>
-
-                {/* Deadline */}
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>Deadline: {formattedDeadline}</span>
-                  </div>
-                  {daysRemaining !== null && daysRemaining > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Clock className="w-4 h-4" />
-                      <span>
-                        {daysRemaining} {daysRemaining === 1 ? "day" : "days"}{" "}
-                        remaining
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Description */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                    Job Description
-                  </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    {job.description}
-                  </p>
-                </div>
-
-                {/* Qualifications */}
-                {qualifications.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                      Job Qualifications:
-                    </h3>
-                    <ul className="space-y-2">
-                      {qualifications.map((qual, index) => (
-                        <li
-                          key={index}
-                          className="flex items-start gap-2 text-sm text-gray-700"
-                        >
-                          <span className="text-blue-600 mt-1">•</span>
-                          <span>{qual}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              <JobCard
+                job={{ ...job, qualifications }}
+                showApplyButton={false}
+                showDescription={true}
+                qualifications={qualifications}
+              />
             </div>
           </div>
         </div>

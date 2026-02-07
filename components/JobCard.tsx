@@ -7,9 +7,17 @@ import { Button } from "@/components/buttons/button";
 
 interface JobCardProps {
   job: JobPosting;
+  showApplyButton?: boolean;
+  showDescription?: boolean;
+  qualifications?: string[];
 }
 
-export default function JobCard({ job }: JobCardProps) {
+export default function JobCard({ 
+  job, 
+  showApplyButton = true, 
+  showDescription = false,
+  qualifications 
+}: JobCardProps) {
   // Get current time in Philippine Time (UTC+8)
   const now = new Date();
   const phtOffset = 8 * 60; // PHT is UTC+8
@@ -43,6 +51,8 @@ export default function JobCard({ job }: JobCardProps) {
     job.status === "ACTIVE" && isPastDeadline ? "CLOSED" : job.status;
   const canApply = effectiveStatus === "ACTIVE";
 
+  const displayQualifications = qualifications || job.qualifications;
+
   return (
     <div className="group flex flex-col relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:shadow-xl hover:border-black">
       {/* Status Badge */}
@@ -55,11 +65,20 @@ export default function JobCard({ job }: JobCardProps) {
         {job.title}
       </h3>
 
+      {/* Description (if enabled) */}
+      {showDescription && job.description && (
+        <div className="mb-4">
+          <p className="text-sm text-gray-600 leading-relaxed">
+            {job.description}
+          </p>
+        </div>
+      )}
+
       {/* Qualifications */}
       <div className="mb-4">
-        {job.qualifications && job.qualifications.length > 0 ? (
+        {displayQualifications && displayQualifications.length > 0 ? (
           <ul className="text-gray-600 space-y-1">
-            {job.qualifications.map((qual, index) => (
+            {displayQualifications.map((qual, index) => (
               <li key={index} className="flex items-start gap-2 text-sm">
                 <span className="text-accent text-sm">•</span>
                 <span>{qual}</span>
@@ -75,7 +94,7 @@ export default function JobCard({ job }: JobCardProps) {
 
       <div className="flex flex-col mt-auto pt-[1rem] border-t border-slate-200">
         {/* Deadline */}
-        <div className={`flex items-center justify-center gap-2 text-sm mb-4 mt-auto ${
+        <div className={`flex items-center justify-center gap-2 text-sm ${showApplyButton ? 'mb-4' : ''} mt-auto ${
           isToday ? 'text-red-600 font-bold' : 
           isBeforeToday ? 'text-gray-400 font-bold line-through' : 
           showCountdown ? 'text-orange-600 font-bold' :
@@ -92,16 +111,20 @@ export default function JobCard({ job }: JobCardProps) {
           </span>
         </div>
         {/* Apply Button */}
-        {canApply ? (
-          <a href={`/jobs/${job.slug}/apply`} className="block">
-            <Button variant="primary" className="w-full">
-              Apply Now
-            </Button>
-          </a>
-        ) : (
-          <Button variant="outlined" disabled className="w-full">
-            Not Available
-          </Button>
+        {showApplyButton && (
+          <>
+            {canApply ? (
+              <a href={`/jobs/${job.slug}/apply`} className="block">
+                <Button variant="primary" className="w-full">
+                  Apply Now
+                </Button>
+              </a>
+            ) : (
+              <Button variant="outlined" disabled className="w-full">
+                Not Available
+              </Button>
+            )}
+          </>
         )}
       </div>
 
