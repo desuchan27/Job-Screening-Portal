@@ -33,23 +33,24 @@ export default function Step2PersonalDetails({
     "Other",
   ];
 
-  // Auto-fill form when extracted data is available
+  // Auto-fill form when extracted data is available - only fill empty fields
   useEffect(() => {
     if (extractedData && extractedData.confidence > 0.3) {
       const updates: Partial<Step2Data> = {};
 
-      if (extractedData.firstName) updates.firstName = extractedData.firstName;
-      if (extractedData.middleName)
+      // Only update fields that are still empty (user hasn't edited them)
+      if (extractedData.firstName && !data.firstName) updates.firstName = extractedData.firstName;
+      if (extractedData.middleName && !data.middleName)
         updates.middleName = extractedData.middleName;
-      if (extractedData.lastName) updates.lastName = extractedData.lastName;
-      if (extractedData.email) updates.email = extractedData.email;
-      if (extractedData.phone) updates.phone = extractedData.phone;
-      if (extractedData.address) updates.address = extractedData.address;
-      if (extractedData.educationalAttainment)
+      if (extractedData.lastName && !data.lastName) updates.lastName = extractedData.lastName;
+      if (extractedData.email && !data.email) updates.email = extractedData.email;
+      if (extractedData.phone && !data.phone) updates.phone = extractedData.phone;
+      if (extractedData.address && !data.address) updates.address = extractedData.address;
+      if (extractedData.educationalAttainment && !data.educationalAttainment)
         updates.educationalAttainment = extractedData.educationalAttainment;
-      if (extractedData.courseDegree)
+      if (extractedData.courseDegree && !data.courseDegree)
         updates.courseDegree = extractedData.courseDegree;
-      if (extractedData.schoolGraduated)
+      if (extractedData.schoolGraduated && !data.schoolGraduated)
         updates.schoolGraduated = extractedData.schoolGraduated;
 
       if (Object.keys(updates).length > 0) {
@@ -61,10 +62,10 @@ export default function Step2PersonalDetails({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-[1rem] xl:text-[1.5rem] font-bold text-gray-900 mb-[0.5rem] xl:mb-[1rem]">
           Personal Information
         </h2>
-        <p className="text-gray-600">
+        <p className="text-[0.875rem] text-slate-600">
           Please provide your personal details accurately.
         </p>
         {extractedData && extractedData.confidence > 0.3 && (

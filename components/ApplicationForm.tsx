@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { checkExistingApplication } from "@/app/actions/application";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import JobCard from "@/components/JobCard";
 
-import { ChevronLeft, ChevronRight, Check, ArrowLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/buttons/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SuccessModal } from "@/components/ui/success-modal";
@@ -44,6 +44,8 @@ export default function ApplicationForm({
   const [currentAnalysisStep, setCurrentAnalysisStep] = useState("");
   const [showResubmitConfirmation, setShowResubmitConfirmation] =
     useState(false);
+  const [showJobDetailsModal, setShowJobDetailsModal] = useState(false);
+  const [showGoBackConfirmation, setShowGoBackConfirmation] = useState(false);
 
   const [formData, setFormData] = useState<ApplicationFormData>({
     step1: {
@@ -95,6 +97,45 @@ export default function ApplicationForm({
       ...prev,
       step3: { ...prev.step3, ...data },
     }));
+  };
+
+  // Check if form has any progress
+  const hasFormProgress = (): boolean => {
+    const { step1, step2, step3 } = formData;
+    
+    // Check step1
+    if (step1.applicantImage) return true;
+    if (Object.keys(step1.requirements).length > 0) return true;
+    
+    // Check step2
+    if (step2.firstName || step2.lastName || step2.email || step2.phone || step2.address) return true;
+    
+    // Check step3
+    if (step3.whyShouldWeHireYou || step3.willingToBeAssignedInButuan || step3.willingToStartASAP) return true;
+    
+    return false;
+  };
+
+  // Handle browser beforeunload event
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasFormProgress() && !showSuccessModal) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [formData, showSuccessModal]);
+
+  // Handle Go Back click
+  const handleGoBack = () => {
+    if (hasFormProgress()) {
+      setShowGoBackConfirmation(true);
+    } else {
+      window.location.href = "/";
+    }
   };
 
   // Validation functions
@@ -279,12 +320,18 @@ export default function ApplicationForm({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header - Mobile Only */}
         <div className="mb-8 text-center lg:hidden">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-[1rem] xl:text-[1.5rem] font-bold text-gray-900 mb-2">
             Apply for {job.title}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-[0.875rem] text-gray-600 mb-4">
             Complete all steps to submit your application
           </p>
+          <button
+            onClick={() => setShowJobDetailsModal(true)}
+            className="text-sm text-blue-600 hover:underline font-medium"
+          >
+            View Job Details
+          </button>
         </div>
 
         {/* Two Column Layout */}
@@ -292,59 +339,49 @@ export default function ApplicationForm({
           {/* Left Column - Form (Mobile: full width, Desktop: 60%) */}
           <div className="flex-1 lg:max-w-2xl">
             {/* Progress Indicator */}
-            <Link
-              href="/"
+            <button
+              onClick={handleGoBack}
               className="inline-block text-black font-bold text-[0.875rem] mb-8"
             >
               <ArrowLeft className="inline-block mr-2 w-4 h-4" />
               Go Back
-            </Link>
+            </button>
             <div className="mb-8">
-              <div className="flex items-center justify-between">
-                {steps.map((step, index) => (
-                  <div key={step.number} className="flex items-center flex-1">
-                    <div className="flex flex-col items-center flex-1">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                          currentStep > step.number
-                            ? "bg-accent text-white"
-                            : currentStep === step.number
-                              ? "bg-black text-white"
-                              : "bg-gray-200 text-gray-500"
-                        }`}
-                      >
-                        {currentStep > step.number ? (
-                          <Check className="w-5 h-5" />
-                        ) : (
-                          step.number
-                        )}
-                      </div>
-                      <span
-                        className={`mt-2 text-sm font-medium ${
-                          currentStep >= step.number
-                            ? "text-gray-900"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {step.title}
-                      </span>
-                    </div>
-                    {index < steps.length - 1 && (
-                      <div
-                        className={`h-1 flex-1 mx-2 transition-all ${
-                          currentStep > step.number
-                            ? "bg-accent"
-                            : "bg-gray-200"
-                        }`}
-                      />
+              <div className="flex items-center gap-3">
+                {steps.map((step) => (
+                  <button
+                    key={step.number}
+                    onClick={() => {
+                      // Only allow navigation to previous steps or current step
+                      if (step.number < currentStep) {
+                        setCurrentStep(step.number);
+                      } else if (step.number === 2 && validateStep1()) {
+                        setCurrentStep(2);
+                      } else if (step.number === 3 && validateStep1() && validateStep2()) {
+                        setCurrentStep(3);
+                      }
+                    }}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
+                      currentStep === step.number
+                        ? "bg-black text-white"
+                        : currentStep > step.number
+                          ? "bg-accent text-white hover:scale-110 cursor-pointer"
+                          : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    }`}
+                    disabled={step.number > currentStep && !(step.number === 2 && validateStep1()) && !(step.number === 3 && validateStep1() && validateStep2())}
+                  >
+                    {currentStep > step.number ? (
+                      <Check className="w-5 h-5" />
+                    ) : (
+                      step.number
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
 
             {/* Form Content */}
-            <div className="bg-white rounded-2xl border border-slate-200 hover:border-black transition-all hover:shadow-md p-8 mb-6 relative">
+            <div className="bg-white md:rounded-2xl md:border border-slate-200 hover:border-black transition-all hover:shadow-md md:p-[2rem] mb-6 relative">
               {/* Loading Overlay with Real-time Progress */}
               {isAnalyzing && (
                 <div className="absolute inset-0 bg-white bg-opacity-95 z-50 rounded-2xl flex items-center justify-center">
@@ -505,6 +542,43 @@ export default function ApplicationForm({
         cancelText="Cancel"
         variant="warning"
         isLoading={isSubmitting}
+      />
+
+      {/* Job Details Modal - Mobile Only */}
+      {showJobDetailsModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 lg:hidden">
+          <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] overflow-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Job Details</h2>
+              <button
+                onClick={() => setShowJobDetailsModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-black" />
+              </button>
+            </div>
+            <div className="overflow-hidden">
+              <JobCard
+                job={{ ...job, qualifications }}
+                showApplyButton={false}
+                showDescription={true}
+                qualifications={qualifications}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Go Back Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showGoBackConfirmation}
+        onClose={() => setShowGoBackConfirmation(false)}
+        onConfirm={() => window.location.href = "/"}
+        title="Leave Application?"
+        description="You have unsaved progress. Are you sure you want to leave?"
+        confirmText="Yes, Leave"
+        cancelText="Stay"
+        variant="warning"
       />
     </div>
   );
