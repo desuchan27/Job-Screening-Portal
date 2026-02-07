@@ -15,10 +15,10 @@ export default function Step3Screening({ data, updateData }: Step3Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-md md:text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-[1rem] xl:text-[1.5rem] font-bold text-gray-900 mb-[0.5rem] xl:mb-[1rem]">
           Screening Questions
         </h2>
-        <p className="text-gray-600">
+        <p className="text-[0.875rem] text-slate-600">
           Please answer the following questions to help us understand your
           preferences.
         </p>

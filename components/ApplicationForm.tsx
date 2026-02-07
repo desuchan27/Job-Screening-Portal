@@ -347,45 +347,35 @@ export default function ApplicationForm({
               Go Back
             </button>
             <div className="mb-8">
-              <div className="flex items-center justify-between">
-                {steps.map((step, index) => (
-                  <div key={step.number} className="flex items-center flex-1">
-                    <div className="flex flex-col items-center flex-1">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
-                          currentStep > step.number
-                            ? "bg-accent text-white"
-                            : currentStep === step.number
-                              ? "bg-black text-white"
-                              : "bg-gray-200 text-gray-500"
-                        }`}
-                      >
-                        {currentStep > step.number ? (
-                          <Check className="w-5 h-5" />
-                        ) : (
-                          step.number
-                        )}
-                      </div>
-                      <span
-                        className={`mt-2 text-sm font-medium text-nowrap ${
-                          currentStep >= step.number
-                            ? "text-gray-900"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {step.title}
-                      </span>
-                    </div>
-                    {index < steps.length - 1 && (
-                      <div
-                        className={`h-1 flex-1 mx-2 transition-all ${
-                          currentStep > step.number
-                            ? "bg-accent"
-                            : "bg-gray-200"
-                        }`}
-                      />
+              <div className="flex items-center gap-3">
+                {steps.map((step) => (
+                  <button
+                    key={step.number}
+                    onClick={() => {
+                      // Only allow navigation to previous steps or current step
+                      if (step.number < currentStep) {
+                        setCurrentStep(step.number);
+                      } else if (step.number === 2 && validateStep1()) {
+                        setCurrentStep(2);
+                      } else if (step.number === 3 && validateStep1() && validateStep2()) {
+                        setCurrentStep(3);
+                      }
+                    }}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
+                      currentStep === step.number
+                        ? "bg-black text-white"
+                        : currentStep > step.number
+                          ? "bg-accent text-white hover:scale-110 cursor-pointer"
+                          : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    }`}
+                    disabled={step.number > currentStep && !(step.number === 2 && validateStep1()) && !(step.number === 3 && validateStep1() && validateStep2())}
+                  >
+                    {currentStep > step.number ? (
+                      <Check className="w-5 h-5" />
+                    ) : (
+                      step.number
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
