@@ -4,13 +4,12 @@
 import { useState } from "react";
 import { checkExistingApplication } from "@/app/actions/application";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import JobCard from "@/components/JobCard";
 
 import {
   ChevronLeft,
   ChevronRight,
   Check,
-  Calendar,
-  Clock,
 } from "lucide-react";
 import { Button } from "@/components/buttons/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -272,23 +271,8 @@ export default function ApplicationForm({
     { number: 3, title: "Screening" },
   ];
 
-  const formattedDeadline = job.deadline
-    ? new Date(job.deadline).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : "No deadline";
-
-  const daysRemaining = job.deadline
-    ? Math.ceil(
-        (new Date(job.deadline).getTime() - new Date().getTime()) /
-          (1000 * 60 * 60 * 24)
-      )
-    : null;
-
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 via-blue-50 to-purple-50 py-12">
+    <div className="min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header - Mobile Only */}
         <div className="mb-8 text-center lg:hidden">
@@ -313,9 +297,9 @@ export default function ApplicationForm({
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
                           currentStep > step.number
-                            ? "bg-green-500 text-white"
+                            ? "bg-accent text-white"
                             : currentStep === step.number
-                            ? "bg-blue-600 text-white"
+                            ? "bg-black text-white"
                             : "bg-gray-200 text-gray-500"
                         }`}
                       >
@@ -339,7 +323,7 @@ export default function ApplicationForm({
                       <div
                         className={`h-1 flex-1 mx-2 transition-all ${
                           currentStep > step.number
-                            ? "bg-green-500"
+                            ? "bg-accent"
                             : "bg-gray-200"
                         }`}
                       />
@@ -350,7 +334,7 @@ export default function ApplicationForm({
             </div>
 
             {/* Form Content */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 mb-6 relative">
+            <div className="bg-white rounded-2xl border border-slate-200 hover:border-black transition-all hover:shadow-md p-8 mb-6 relative">
               {/* Loading Overlay with Real-time Progress */}
               {isAnalyzing && (
                 <div className="absolute inset-0 bg-white bg-opacity-95 z-50 rounded-2xl flex items-center justify-center">
@@ -477,62 +461,12 @@ export default function ApplicationForm({
           {/* Right Column - Job Details (Desktop Only) */}
           <div className="hidden lg:block lg:w-96 shrink-0">
             <div className="sticky top-8 space-y-6">
-              {/* Job Card */}
-              <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-                <div className="flex items-start justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {job.title}
-                  </h2>
-                  <StatusBadge status={job.status} />
-                </div>
-
-                {/* Deadline */}
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>Deadline: {formattedDeadline}</span>
-                  </div>
-                  {daysRemaining !== null && daysRemaining > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Clock className="w-4 h-4" />
-                      <span>
-                        {daysRemaining} {daysRemaining === 1 ? "day" : "days"}{" "}
-                        remaining
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Description */}
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                    Job Description
-                  </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    {job.description}
-                  </p>
-                </div>
-
-                {/* Qualifications */}
-                {qualifications.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                      Job Qualifications:
-                    </h3>
-                    <ul className="space-y-2">
-                      {qualifications.map((qual, index) => (
-                        <li
-                          key={index}
-                          className="flex items-start gap-2 text-sm text-gray-700"
-                        >
-                          <span className="text-blue-600 mt-1">•</span>
-                          <span>{qual}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              <JobCard 
+                job={{ ...job, qualifications }}
+                showApplyButton={false}
+                showDescription={true}
+                qualifications={qualifications}
+              />
             </div>
           </div>
         </div>

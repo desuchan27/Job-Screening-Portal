@@ -1,7 +1,6 @@
 "use client";
 
-import { X, Download, FileText, Image as ImageIcon } from "lucide-react";
-import { Button } from "@/components/buttons/button";
+import { X, Download } from "lucide-react";
 
 interface FilePreviewModalProps {
   isOpen: boolean;
@@ -25,28 +24,23 @@ export function FilePreviewModal({
       <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            {fileType === "pdf" ? (
-              <FileText className="w-5 h-5 text-red-600" />
-            ) : (
-              <ImageIcon className="w-5 h-5 text-blue-600" />
-            )}
-            <h3 className="text-lg font-semibold text-gray-900">{fileName}</h3>
-          </div>
+          <h3 className="text-sm font-semibold text-gray-900">{fileName}</h3>
           <div className="flex items-center gap-2">
             <a
               href={fileUrl}
               target="_blank"
               rel="noopener noreferrer"
               download
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <Button variant="ghost" size="sm" iconOnly>
-                <Download className="w-4 h-4" />
-              </Button>
+              <Download className="w-5 h-5 text-black" />
             </a>
-            <Button variant="ghost" size="sm" iconOnly onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-black" />
+            </button>
           </div>
         </div>
 
@@ -54,9 +48,7 @@ export function FilePreviewModal({
         <div className="flex-1 overflow-auto bg-gray-100 p-4">
           {fileType === "pdf" ? (
             <iframe
-              src={`https://docs.google.com/viewer?url=${encodeURIComponent(
-                fileUrl
-              )}&embedded=true`}
+              src={fileUrl}
               className="w-full h-full min-h-[600px] rounded-lg bg-white"
               title={fileName}
             />
@@ -72,7 +64,7 @@ export function FilePreviewModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-end p-4 border-t border-gray-200 bg-gray-50">
           <a
             href={fileUrl}
             target="_blank"
@@ -81,9 +73,6 @@ export function FilePreviewModal({
           >
             Open in new tab
           </a>
-          <Button variant="outlined" onClick={onClose}>
-            Close
-          </Button>
         </div>
       </div>
     </div>
