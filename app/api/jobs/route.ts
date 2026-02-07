@@ -21,7 +21,22 @@ export async function GET() {
       ['ACTIVE']
     );
 
-    return NextResponse.json(jobs);
+    // Fetch qualifications for each job
+    const jobsWithQualifications = await Promise.all(
+      jobs.map(async (job) => {
+        const qualifications = await query<{ qualification: string }>(
+          `SELECT qualification FROM job_qualifications WHERE job_posting_id = $1 ORDER BY created_at`,
+          [job.id]
+        );
+        
+        return {
+          ...job,
+          qualifications: qualifications.map(q => q.qualification)
+        };
+      })
+    );
+
+    return NextResponse.json(jobsWithQualifications);
   } catch (error) {
     console.error('Database error:', error);
     return NextResponse.json(
