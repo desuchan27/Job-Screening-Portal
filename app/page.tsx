@@ -2,7 +2,7 @@
 
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { Search, Filter, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import JobCard from "@/components/JobCard";
 import { Input } from "@/components/forms/input";
 import { JobPosting } from "@/lib/types";
@@ -13,8 +13,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [experienceFilter, setExperienceFilter] = useState("");
-  const [deadlineStatus, setDeadlineStatus] = useState<'all' | 'available' | 'not-available'>("all");
-  const [deadlineBefore, setDeadlineBefore] = useState<string>("");
+  const [jobStatusFilter, setJobStatusFilter] = useState<'all' | 'open' | 'closed'>("all");
   const [sortBy, setSortBy] = useState<'latest' | 'name' | 'soonest'>("latest");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
@@ -59,6 +58,37 @@ export default function Home() {
   const filteredJobs = useMemo(() => {
     let filtered = jobs;
 
+    // Exclude DRAFT jobs and determine if job is closed
+    const now = new Date();
+    filtered = filtered.filter(job => {
+      // Filter out DRAFT jobs completely
+      if (job.status === 'DRAFT') return false;
+      return true;
+    });
+
+    // Add effective status to each job (considering deadline)
+    const jobsWithStatus = filtered.map(job => {
+      const deadlineDate = job.deadline ? new Date(job.deadline) : null;
+      const isPastDeadline = deadlineDate ? deadlineDate < now : false;
+      const isClosed = job.status === 'CLOSED' || (job.status === 'ACTIVE' && isPastDeadline);
+      return { ...job, isClosed } as JobPosting & { isClosed: boolean };
+    });
+
+    filtered = jobsWithStatus as typeof filtered;
+
+    // Filter by job status (open/closed/all)
+    if (jobStatusFilter !== 'all') {
+      filtered = filtered.filter(job => {
+        const jobWithStatus = job as JobPosting & { isClosed?: boolean };
+        if (jobStatusFilter === 'open') {
+          return !jobWithStatus.isClosed;
+        } else if (jobStatusFilter === 'closed') {
+          return jobWithStatus.isClosed;
+        }
+        return true;
+      });
+    }
+
     // Filter by search query (job title and description)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -93,47 +123,51 @@ export default function Home() {
       });
     }
 
-    // Filter by deadline status
-    if (deadlineStatus !== 'all') {
-      const now = new Date();
-      filtered = filtered.filter(job => {
-        const deadline = job.deadline ? new Date(job.deadline) : null;
-        if (deadlineStatus === 'available') {
-          return !deadline || deadline >= now;
-        } else if (deadlineStatus === 'not-available') {
-          return deadline && deadline < now;
-        }
-        return true;
-      });
-    }
-
-    // Filter by deadline before
-    if (deadlineBefore) {
-      const beforeDate = new Date(deadlineBefore);
-      filtered = filtered.filter(job => {
-        if (!job.deadline) return false;
-        return new Date(job.deadline) <= beforeDate;
-      });
-    }
-
-    // Sort
+    // Sort: open jobs first, closed jobs last
     filtered = [...filtered];
-    if (sortBy === 'name') {
-      filtered.sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sortBy === 'soonest') {
-      filtered.sort((a, b) => {
+    filtered.sort((a, b) => {
+      const jobA = a as JobPosting & { isClosed?: boolean };
+      const jobB = b as JobPosting & { isClosed?: boolean };
+      
+      // First, separate by open/closed status
+      if (jobA.isClosed !== jobB.isClosed) {
+        return jobA.isClosed ? 1 : -1; // Open jobs first
+      }
+
+      // Within the same status group, apply the selected sort
+      if (sortBy === 'name') {
+        return a.title.localeCompare(b.title);
+      } else if (sortBy === 'soonest') {
         if (!a.deadline && !b.deadline) return 0;
         if (!a.deadline) return 1;
         if (!b.deadline) return -1;
         return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-      });
-    } else {
-      // latest (default): sort by created_at descending
-      filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }
+      } else {
+        // For 'latest' sort:
+        // - For open jobs: prioritize by sooner deadline, then by latest post
+        // - For closed jobs: sort by sooner deadline
+        if (!jobA.isClosed && !jobB.isClosed) {
+          // Both open: sooner deadline first, then latest post
+          if (a.deadline && b.deadline) {
+            const deadlineDiff = new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+            if (deadlineDiff !== 0) return deadlineDiff;
+          }
+          if (a.deadline && !b.deadline) return -1;
+          if (!a.deadline && b.deadline) return 1;
+          // If same or no deadline, sort by latest post
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        } else {
+          // Both closed: sort by sooner deadline
+          if (!a.deadline && !b.deadline) return 0;
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        }
+      }
+    });
 
     return filtered;
-  }, [jobs, searchQuery, experienceFilter, deadlineStatus, deadlineBefore, sortBy]);
+  }, [jobs, searchQuery, experienceFilter, jobStatusFilter, sortBy]);
 
   return (
     <div className="min-h-screen bg-linear-to-b">
@@ -186,32 +220,17 @@ export default function Home() {
             {/* Filters: always visible on desktop, toggled on mobile */}
             <div className={`flex flex-row gap-[0.5rem] w-full overflow-x-auto ${showMobileFilters ? 'flex' : 'hidden'} xl:flex`}>
               <div className="md:w-48 flex flex-col items-start gap-1">
-                <label htmlFor="deadline-status" className="text-xs text-gray-700 whitespace-nowrap">Deadline:</label>
+                <label htmlFor="job-status" className="text-xs text-gray-700 whitespace-nowrap">Status:</label>
                 <select
-                  id="deadline-status"
-                  value={deadlineStatus}
-                  onChange={e => setDeadlineStatus(e.target.value as 'all' | 'available' | 'not-available')}
+                  id="job-status"
+                  value={jobStatusFilter}
+                  onChange={e => setJobStatusFilter(e.target.value as 'all' | 'open' | 'closed')}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-accent focus:border-accent bg-white"
                 >
-                  <option value="all">All</option>
-                  <option value="available">Available</option>
-                  <option value="not-available">Not Available</option>
+                  <option value="all">All Jobs</option>
+                  <option value="open">Open Jobs</option>
+                  <option value="closed">Closed Jobs</option>
                 </select>
-              </div>
-              <div className="w-full md:w-56 flex flex-col items-start gap-1">
-                <label htmlFor="deadline-before" className="text-xs text-gray-700 whitespace-nowrap">Before:</label>
-                <div className="w-full flex flex-row gap-[0.5rem]">
-                  <input
-                    id="deadline-before"
-                    type="date"
-                    value={deadlineBefore}
-                    onChange={e => setDeadlineBefore(e.target.value)}
-                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-accent focus:border-accent bg-white w-full"
-                  />
-                  {deadlineBefore && (
-                    <button onClick={() => setDeadlineBefore("")} className="ml-1 text-gray-400 hover:text-gray-600"><Calendar className="w-4 h-4" /></button>
-                  )}
-                </div>
               </div>
               <div className="md:w-56 flex flex-col items-start gap-1">
                 <label htmlFor="sort-by" className="text-xs text-gray-700 whitespace-nowrap">Sort by:</label>
@@ -308,6 +327,7 @@ export default function Home() {
                       onClick={() => {
                         setSearchQuery('');
                         setExperienceFilter('');
+                        setJobStatusFilter('all');
                       }}
                       className="text-blue-600 hover:text-blue-700 text-sm underline"
                     >
@@ -333,6 +353,7 @@ export default function Home() {
                   onClick={() => {
                     setSearchQuery('');
                     setExperienceFilter('');
+                    setJobStatusFilter('all');
                   }}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >

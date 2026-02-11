@@ -16,9 +16,8 @@ export async function GET() {
         created_at, 
         updated_at 
       FROM job_posting 
-      WHERE status = $1 
-      ORDER BY created_at DESC`,
-      ['ACTIVE']
+      WHERE status IN ('ACTIVE', 'CLOSED') 
+      ORDER BY created_at DESC`
     );
 
     // Fetch qualifications for each job

@@ -24,8 +24,8 @@ export default async function ApplyPage({ params }: PageProps) {
       created_at, 
       updated_at 
     FROM job_posting 
-    WHERE slug = $1 AND status = $2`,
-    [slug, "ACTIVE"]
+    WHERE slug = $1 AND status IN ('ACTIVE', 'CLOSED')`,
+    [slug]
   );
 
   const job = jobs[0];
@@ -34,7 +34,7 @@ export default async function ApplyPage({ params }: PageProps) {
     notFound();
   }
 
-  // Check if deadline has passed (using Philippine Time UTC+8)
+  // Check if job is closed or deadline has passed (using Philippine Time UTC+8)
   // Allow applications on the deadline day until midnight PHT
   const now = new Date();
   const phtOffset = 8 * 60; // PHT is UTC+8
@@ -45,10 +45,11 @@ export default async function ApplyPage({ params }: PageProps) {
   const deadlineDate = job.deadline ? new Date(job.deadline) : null;
   const deadlineDay = deadlineDate ? new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate()) : null;
   
-  // Only close if we're past the deadline day (day after deadline)
+  // Only close if we're past the deadline day (day after deadline) or status is CLOSED
   const isPastDeadline = deadlineDay && deadlineDay.getTime() < today.getTime();
+  const isClosed = job.status === 'CLOSED' || isPastDeadline;
   
-  if (isPastDeadline) {
+  if (isClosed) {
     return (
       <div className="min-h-screen bg-linear-to-br flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
