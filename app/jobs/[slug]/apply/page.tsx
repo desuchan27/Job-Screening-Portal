@@ -24,7 +24,7 @@ export default async function ApplyPage({ params }: PageProps) {
       created_at, 
       updated_at 
     FROM job_posting 
-    WHERE slug = $1 AND status IN ('ACTIVE', 'CLOSED')`,
+    WHERE slug = $1 AND status = 'ACTIVE'`,
     [slug]
   );
 
@@ -45,9 +45,9 @@ export default async function ApplyPage({ params }: PageProps) {
   const deadlineDate = job.deadline ? new Date(job.deadline) : null;
   const deadlineDay = deadlineDate ? new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate()) : null;
   
-  // Only close if we're past the deadline day (day after deadline) or status is CLOSED
+  // Only close if we're past the deadline day (day after deadline)
   const isPastDeadline = deadlineDay && deadlineDay.getTime() < today.getTime();
-  const isClosed = job.status === 'CLOSED' || isPastDeadline;
+  const isClosed = isPastDeadline;
   
   if (isClosed) {
     return (

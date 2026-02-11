@@ -16,7 +16,7 @@ export async function GET() {
         created_at, 
         updated_at 
       FROM job_posting 
-      WHERE status IN ('ACTIVE', 'CLOSED') 
+      WHERE status = 'ACTIVE' 
       ORDER BY created_at DESC`
     );
 
