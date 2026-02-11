@@ -7,7 +7,6 @@ import JobCard from "@/components/JobCard";
 
 import { ChevronLeft, ChevronRight, Check, ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/buttons/button";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { SuccessModal } from "@/components/ui/success-modal";
 import Step1Documents from "./application-steps/Step1Documents";
 import Step2PersonalDetails from "./application-steps/Step2PersonalDetails";
@@ -21,7 +20,6 @@ import type {
   JobRequirement,
   ExtractedPersonalData,
 } from "@/lib/types";
-import Link from "next/link";
 
 interface ApplicationFormProps {
   job: JobPosting;
