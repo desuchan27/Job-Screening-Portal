@@ -72,29 +72,28 @@ export default async function ApplyPage({ params }: PageProps) {
 
   // Fetch job qualifications
   const qualifications = await query<{ qualification: string }>(
-    `SELECT qualification FROM job_qualifications WHERE job_posting_id = $1 ORDER BY created_at`,
+    `SELECT name as qualification FROM job_qualification WHERE job_posting_id = $1 ORDER BY "order" ASC`,
     [job.id]
   );
 
-  // Fetch job requirements (document upload requirements)
-  const requirements = await query<{
-    id: string;
-    name: string;
-    is_mandatory: boolean;
-    accepts_multiple: boolean;
-    file_type: "image" | "pdf";
-    order: number;
-  }>(
-    `SELECT id, name, is_mandatory, accepts_multiple, file_type, "order" 
-     FROM job_requirement 
-     ORDER BY "order" ASC, created_at ASC`
-  );
+  const API_BASE_URL = process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
+  let documentRequirements = [];
+  try {
+    const configRes = await fetch(`${API_BASE_URL}/api/external/job-form-config?jobId=${job.id}`);
+    const configData = await configRes.json();
+    if (configData.success && configData.job) {
+      job.applicationFormSchema = configData.job.applicationFormSchema;
+      documentRequirements = configData.job.documentRequirements || [];
+    }
+  } catch (error) {
+    console.error("Failed to fetch job config:", error);
+  }
 
   return (
     <ApplicationForm
       job={job}
       qualifications={qualifications.map((q) => q.qualification)}
-      requirements={requirements}
+      requirements={documentRequirements}
     />
   );
 }
