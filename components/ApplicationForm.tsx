@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { checkExistingApplication } from "@/app/actions/application";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import JobCard from "@/components/JobCard";
@@ -22,6 +22,13 @@ interface ApplicationFormProps {
   job: JobPosting;
   qualifications: string[];
   requirements: JobRequirement[];
+}
+
+type DynamicResponseValue = string | number | boolean | string[] | null;
+
+interface ExtractedApplicationData {
+  data?: unknown;
+  dynamicFormValues?: Record<string, DynamicResponseValue>;
 }
 
 function normalizeFieldKey(value: string): string {
@@ -156,7 +163,7 @@ export default function ApplicationForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [extractedData, setExtractedData] = useState<any | null>(null);
+  const [extractedData, setExtractedData] = useState<ExtractedApplicationData | null>(null);
   const [activePrefillRequests, setActivePrefillRequests] = useState(0);
   const [pendingNextAfterPrefill, setPendingNextAfterPrefill] = useState(false);
   
@@ -200,20 +207,20 @@ export default function ApplicationForm({
     }));
   };
 
-  const updateDynamicResponses = (updates: Record<string, any>) => {
+  const updateDynamicResponses = (updates: Record<string, DynamicResponseValue>) => {
     setFormData((prev) => ({
       ...prev,
       applicationFormResponses: { ...prev.applicationFormResponses, ...updates },
     }));
   };
 
-  const hasFormProgress = (): boolean => {
+  const hasFormProgress = useCallback((): boolean => {
     const { step1, applicationFormResponses } = formData;
     if (step1.applicantImage) return true;
     if (Object.keys(step1.requirements).length > 0) return true;
     if (Object.keys(applicationFormResponses).length > 0) return true;
     return false;
-  };
+  }, [formData]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -224,7 +231,7 @@ export default function ApplicationForm({
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [formData, showSuccessModal]);
+  }, [hasFormProgress, showSuccessModal]);
 
   const handleGoBack = () => {
     if (hasFormProgress()) {
@@ -301,7 +308,7 @@ export default function ApplicationForm({
 
   const getMappedValue = (keys: string[]) => {
       const responseEntries = Object.entries(formData.applicationFormResponses || {});
-      const normalizedMap = new Map<string, any>();
+      const normalizedMap = new Map<string, DynamicResponseValue>();
 
       for (const [key, value] of responseEntries) {
         const normalized = normalizeFieldKey(key);
