@@ -12,14 +12,20 @@ export interface JobPosting {
   created_at: Date;
   updated_at: Date;
   qualifications?: string[]; // Optional for backwards compatibility
+  applicationFormSchema?: ApplicationFormGroup[];
 }
 
 export interface JobRequirement {
   id: string;
   name: string;
-  is_mandatory: boolean;
-  accepts_multiple: boolean;
-  file_type: "image" | "pdf";
+  is_mandatory?: boolean;
+  isMandatory?: boolean; // Support Drizzle mapped output
+  accepts_multiple?: boolean;
+  acceptsMultiple?: boolean;
+  file_type?: "image" | "pdf";
+  fileType?: "image" | "pdf";
+  file_types?: string | string[]; // Can be a JSON string from db or parsed array
+  fileTypes?: string | string[];
   order: number;
 }
 
@@ -60,6 +66,45 @@ export interface ApplicationFormData {
   step1: Step1Data;
   step2: Step2Data;
   step3: Step3Data;
+  applicationFormResponses: Record<string, any>;
+}
+
+export type ApplicationFormAutoFillSource =
+  | "infer-from-label"
+  | "firstName"
+  | "middleName"
+  | "middleInitial"
+  | "lastName"
+  | "suffix"
+  | "email"
+  | "phone"
+  | "address"
+  | "educationalAttainment"
+  | "courseDegree"
+  | "schoolGraduated";
+
+export interface ApplicationFormItem {
+  id?: string;
+  type: string; // "text" | "textarea" | "radio" | "multiCheckbox" | "consent"
+  fieldKey?: string;
+  label?: string;
+  description?: string;
+  placeholder?: string;
+  isEnabled?: boolean;
+  isMandatory?: boolean;
+  order?: number;
+  options?: string[];
+  autoFillEnabled?: boolean;
+  autoFillSource?: ApplicationFormAutoFillSource;
+  autoFillRequirementName?: string;
+}
+
+export interface ApplicationFormGroup {
+  id: string;
+  title: string;
+  description?: string;
+  order?: number;
+  items?: ApplicationFormItem[];
 }
 
 // AI Extraction Types

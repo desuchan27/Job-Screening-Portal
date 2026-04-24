@@ -30,6 +30,20 @@ export const ourFileRouter = {
       console.log("Multiple image uploaded:", file.ufsUrl);
       return { url: file.ufsUrl };
     }),
+
+  // PDF or Image uploader (single)
+  pdfOrImageUploader: f({ pdf: { maxFileSize: "4MB", maxFileCount: 1 }, image: { maxFileSize: "4MB", maxFileCount: 1 } })
+    .onUploadComplete(async ({ file }) => {
+      console.log("PDF/Image uploaded:", file.ufsUrl);
+      return { url: file.ufsUrl };
+    }),
+
+  // PDF or Image uploader (multiple)
+  multiplePdfOrImageUploader: f({ pdf: { maxFileSize: "4MB", maxFileCount: 10 }, image: { maxFileSize: "4MB", maxFileCount: 10 } })
+    .onUploadComplete(async ({ file }) => {
+      console.log("Multiple PDF/Image uploaded:", file.ufsUrl);
+      return { url: file.ufsUrl };
+    }),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;

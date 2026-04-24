@@ -79,7 +79,7 @@ export const Input = forwardRef<
             className="text-sm font-medium text-gray-700"
           >
             {label}
-            {isMandatory && <span className="text-red-500 ml-1">*</span>}
+            {isMandatory ? <span className="text-red-500 ml-1">*</span> : <span className="text-gray-400 text-xs font-normal ml-1">(optional)</span>}
           </label>
         )}
 

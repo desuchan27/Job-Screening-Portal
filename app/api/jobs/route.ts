@@ -24,7 +24,7 @@ export async function GET() {
     const jobsWithQualifications = await Promise.all(
       jobs.map(async (job) => {
         const qualifications = await query<{ qualification: string }>(
-          `SELECT qualification FROM job_qualifications WHERE job_posting_id = $1 ORDER BY created_at`,
+          `SELECT name as qualification FROM job_qualification WHERE job_posting_id = $1 ORDER BY "order" ASC`,
           [job.id]
         );
         

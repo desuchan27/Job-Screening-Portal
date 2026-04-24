@@ -8,26 +8,29 @@ import { FilePreviewModal } from "@/components/ui/file-preview-modal";
 import type {
   Step1Data,
   JobRequirement,
-  ExtractedPersonalData,
 } from "@/lib/types";
 
 interface Step1Props {
   data: Step1Data;
   updateData: (data: Partial<Step1Data>) => void;
   requirements: JobRequirement[];
-  onExtractedData: (data: ExtractedPersonalData) => void;
+  jobId: string;
+  onExtractedData: (result: any) => void;
+  onPrefillLoadingEvent?: (event: "start" | "end") => void;
 }
 
 export default function Step1Documents({
   data,
   updateData,
   requirements,
+  jobId,
   onExtractedData,
+  onPrefillLoadingEvent,
 }: Step1Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[1rem] xl:text-[1.5rem] font-bold text-gray-900 mb-[0.5rem] xl:mb-[1rem]">
+        <h2 className="text-[1rem] xl:text-[1.5rem] font-bold text-gray-900 mb-2 xl:mb-4">
           Upload Required Documents
         </h2>
         <p className="text-[0.875rem] text-slate-600">
@@ -65,10 +68,11 @@ export default function Step1Documents({
                requirement.name.toLowerCase().includes("curriculum vitae")
              ) {
                 console.log("Triggering analysis for:", requirement.name);
-                // Determine type for hint
-                // Determine type for hint
-                const typeHint = requirement.file_type || "pdf"; 
-                analyzeDocuments([url], onExtractedData, typeHint);
+                onPrefillLoadingEvent?.("start");
+                void analyzeDocuments([url], jobId, onExtractedData, requirement.name)
+                  .finally(() => {
+                    onPrefillLoadingEvent?.("end");
+                  });
              }
           }}
         />
@@ -244,17 +248,51 @@ function DynamicFileUpload({
   const [previewUrl, setPreviewUrl] = useState<string>("");
 
   // Determine endpoint based on file type
-  let endpoint: "imageUploader" | "multipleImageUploader" | "pdfUploader" | "certificatesUploader" = "pdfUploader";
-  if (requirement.file_type === "image") {
-    endpoint = requirement.accepts_multiple
-      ? "multipleImageUploader"
-      : "imageUploader";
-  } else {
-    // pdf (or default)
-    endpoint = requirement.accepts_multiple
-      ? "certificatesUploader"
-      : "pdfUploader";
+  const fieldFileType = requirement.fileType || requirement.file_type;
+  let allowedTypes: string[] = [];
+  const rawFileTypes = requirement.fileTypes || requirement.file_types;
+  if (typeof rawFileTypes === "string") {
+    try {
+      allowedTypes = JSON.parse(rawFileTypes);
+    } catch {
+      allowedTypes = [];
+    }
+  } else if (Array.isArray(rawFileTypes)) {
+    allowedTypes = rawFileTypes;
   }
+
+  // Fallback to legacy fileType if file_types array is missing
+  if (allowedTypes.length === 0 && fieldFileType) {
+    allowedTypes = [fieldFileType];
+  }
+
+  const supportsPdf = allowedTypes.includes("pdf") || allowedTypes.length === 0; // default to pdf
+  const supportsImage = allowedTypes.includes("image");
+
+  const isMultiple = requirement.acceptsMultiple ?? requirement.accepts_multiple;
+  
+  // @ts-ignore - Ignore exact keyof matching for dynamic flexibility
+  let endpoint: any = "pdfUploader";
+  
+  if (supportsPdf && supportsImage) {
+    endpoint = isMultiple ? "multiplePdfOrImageUploader" : "pdfOrImageUploader";
+  } else if (supportsImage && !supportsPdf) {
+    endpoint = isMultiple ? "multipleImageUploader" : "imageUploader";
+  } else {
+    endpoint = isMultiple ? "certificatesUploader" : "pdfUploader";
+  }
+
+  // Generate label and accept props
+  let typeLabel = "PDF";
+  let acceptStr = ".pdf";
+  if (supportsPdf && supportsImage) {
+    typeLabel = "PDF or Image";
+    acceptStr = "image/*,.pdf";
+  } else if (supportsImage && !supportsPdf) {
+    typeLabel = "Image";
+    acceptStr = "image/*";
+  }
+
 
   const { startUpload } = useUploadThing(endpoint);
 
@@ -265,7 +303,7 @@ function DynamicFileUpload({
     setIsUploading(true);
     try {
       // Delete old file if replacing single file
-      if (!requirement.accepts_multiple && typeof value === "string" && value) {
+      if (!isMultiple && typeof value === "string" && value) {
         await fetch("/api/uploadthing/delete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -276,7 +314,7 @@ function DynamicFileUpload({
       const result = await startUpload(files);
       if (!result) return;
 
-      if (requirement.accepts_multiple) {
+      if (isMultiple) {
         // Add to existing array
         const currentUrls = Array.isArray(value) ? value : [];
         const newUrls = result.map((r) => r.url);
@@ -301,7 +339,7 @@ function DynamicFileUpload({
   };
 
   const handleRemove = async (index?: number) => {
-    if (requirement.accepts_multiple && typeof index === "number") {
+    if (isMultiple && typeof index === "number") {
       const currentUrls = Array.isArray(value) ? value : [];
       const urlToDelete = currentUrls[index];
 
@@ -322,7 +360,7 @@ function DynamicFileUpload({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileUrl: value }),
       });
-      onChange(requirement.accepts_multiple ? [] : "");
+      onChange(isMultiple ? [] : "");
     }
   };
 
@@ -331,28 +369,28 @@ function DynamicFileUpload({
     setShowPreview(true);
   };
 
-  const fileType = requirement.file_type || "pdf";
-
-  const accept = fileType === "image" ? "image/*" : ".pdf";
+  const isReqMandatory = requirement.isMandatory ?? requirement.is_mandatory;
 
   return (
     <div className="flex flex-col gap-2">
       <label className="text-sm font-medium text-gray-700">
         {requirement.name}
-        {requirement.is_mandatory && (
+        {isReqMandatory ? (
           <span className="text-red-500 ml-1">*</span>
+        ) : (
+          <span className="text-gray-400 text-xs font-normal ml-1">(optional)</span>
         )}
       </label>
 
       {/* Display uploaded files */}
-      {requirement.accepts_multiple ? (
+      {isMultiple ? (
         // Multiple files display
         <div className="space-y-3">
           {/* Add Files Button - Always on top */}
           <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-slate-50 transition-colors">
             <input
               type="file"
-              accept={accept}
+              accept={acceptStr}
               multiple
               onChange={handleFileSelect}
               className="hidden"
@@ -370,6 +408,9 @@ function DynamicFileUpload({
                   {value && Array.isArray(value) && value.length > 0
                     ? "Add more files"
                     : "Click to upload files"}
+                </span>
+                <span className="text-xs text-slate-500 mt-1 block text-center">
+                  {typeLabel} (Max 4MB)
                 </span>
               </>
             )}
@@ -409,7 +450,7 @@ function DynamicFileUpload({
                       <label className="cursor-pointer">
                         <input
                           type="file"
-                          accept={accept}
+                          accept={acceptStr}
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
@@ -482,7 +523,7 @@ function DynamicFileUpload({
         <>
           {typeof value === "string" && value ? (
             // Success State
-            <div className="flex items-start gap-3 p-[1rem] md:p-[1.5rem] bg-white border border-slate-200 hover:border-black transition-all rounded-lg relative">
+            <div className="flex items-start gap-3 p-4 md:p-6 bg-white border border-slate-200 hover:border-black transition-all rounded-lg relative">
               {/* Loading Overlay for Reupload */}
               {isUploading && (
                 <div className="absolute inset-0 bg-white bg-opacity-95 rounded-lg flex items-center justify-center z-10">
@@ -500,7 +541,7 @@ function DynamicFileUpload({
                   <label className="cursor-pointer">
                     <input
                       type="file"
-                      accept={accept}
+                      accept={acceptStr}
                       onChange={handleFileSelect}
                       className="hidden"
                       disabled={isUploading}
@@ -527,7 +568,7 @@ function DynamicFileUpload({
             <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-slate-50 transition-colors">
               <input
                 type="file"
-                accept={accept}
+                accept={acceptStr}
                 onChange={handleFileSelect}
                 className="hidden"
                 disabled={isUploading}
@@ -544,7 +585,7 @@ function DynamicFileUpload({
                     Click to upload file
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    {fileType === "image" ? "Image files" : "PDF"} (Max 4MB)
+                    {typeLabel} (Max 4MB)
                   </p>
                 </>
               )}
@@ -560,7 +601,7 @@ function DynamicFileUpload({
           onClose={() => setShowPreview(false)}
           fileUrl={previewUrl}
           fileName={requirement.name}
-          fileType={fileType}
+          fileType={previewUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) ? "image" : "pdf"}
         />
       )}
     </div>
@@ -570,42 +611,52 @@ function DynamicFileUpload({
 // Helper function to analyze documents
 async function analyzeDocuments(
   fileUrls: string[],
-  onExtractedData: (data: ExtractedPersonalData) => void,
-  typeHint: string = "pdf"
+  jobId: string,
+  onExtractedData: (result: any) => void,
+  requirementName?: string
 ) {
   const API_BASE_URL =
     process.env.NEXT_PUBLIC_AI_SCREENING_API_URL || "http://localhost:3000";
 
   try {
     console.log("Analyzing documents:", fileUrls);
-    // Process the first file (assuming resume is first or you iterate)
-    const fileUrl = fileUrls[0];
-    if (!fileUrl) return;
+    const documents = fileUrls
+      .map((url) => (typeof url === "string" ? url.trim() : ""))
+      .filter(Boolean)
+      .map((url) => ({
+        requirementName: (requirementName || "").trim(),
+        fileUrl: url,
+      }));
 
-    // WORKAROUND: External API requires .pdf or image extension in URL string
-    // Append a dummy fragment to satisfy the check without breaking the URL
-    let finalUrl = fileUrl;
-    if (typeHint === "pdf" && !fileUrl.toLowerCase().includes(".pdf")) {
-        finalUrl += "#.pdf";
-    } else if (typeHint === "image" && !fileUrl.match(/\.(jpg|jpeg|png|webp)/i)) {
-        finalUrl += "#.jpg";
+    if (documents.length === 0) return;
+
+    const requestBody: Record<string, unknown> = {
+      documents,
+      jobId,
+      prefillMode: "all-groups",
+    };
+
+    // Keep single-file fields for backward compatibility with older extract API versions.
+    if (documents.length === 1) {
+      requestBody.fileUrl = documents[0].fileUrl;
+      requestBody.requirementName = documents[0].requirementName;
     }
 
-    console.log("Fetching extraction from:", `${API_BASE_URL}/api/external/extract-personal-data`, "with URL:", finalUrl);
+    console.log("Fetching extraction from:", `${API_BASE_URL}/api/external/extract-personal-data`);
     
     const response = await fetch(
       `${API_BASE_URL}/api/external/extract-personal-data`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileUrl: finalUrl }),
+        body: JSON.stringify(requestBody),
       }
     );
 
     if (response.ok) {
       const result = await response.json();
-      if (result.success && result.data) {
-        onExtractedData(result.data);
+      if (result.success) {
+        onExtractedData(result);
       }
     } else {
         const errorText = await response.text();
